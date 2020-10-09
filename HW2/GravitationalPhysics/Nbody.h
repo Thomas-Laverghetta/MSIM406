@@ -1,4 +1,5 @@
 #pragma once
+#include <fstream>
 
 class Nbody
 {
@@ -22,4 +23,5 @@ private:
 	void ShareData();
 	void PrintBody(int i);
 	void PrintBodies(double t);
+	std::ofstream fout;
 };

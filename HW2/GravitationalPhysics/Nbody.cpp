@@ -3,6 +3,7 @@
 #include <random>
 #include <iostream>
 #include <mpi.h>
+#include <string>
 #include "Barrier.h"
 #include "Nbody.h"
 
@@ -36,6 +37,15 @@ Nbody::Nbody(int n, double deltaT)
 	MPI_Init(NULL, NULL);
 	MPI_Comm_rank(MPI_COMM_WORLD, &_processID);
 	MPI_Comm_size(MPI_COMM_WORLD, &_numProcess);
+
+#if defined(RING)
+	fout = std::ofstream("RING_gravity_" + std::to_string(_numProcess) + "_processors.csv");
+#elif defined(BUTTERFLY)
+	fout = std::ofstream("BUTTERFLY_gravity_" + std::to_string(_numProcess) + "_processors.csv");
+#elif defined(MPI_BARRIER)
+	fout = std::ofstream("MPI_barrier_gravity_" + std::to_string(_numProcess) + "_processors.csv");
+#endif
+
 	_t = 0;
 	_n = n;
 	_deltaT = deltaT;
@@ -65,19 +75,19 @@ Nbody::Nbody(int n, double deltaT)
 		}
 	}
 #ifdef DEBUG
-	cout << _processID << " broadcast" << endl;
+	fout << _processID << " broadcast" << endl;
 #endif
 	MPI_Bcast(_bodiesX, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 #ifdef DEBUG
-	cout << _processID << " broadcast" << endl;
+	fout << _processID << " broadcast" << endl;
 #endif
 	MPI_Bcast(_bodiesY, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 #ifdef DEBUG
-	cout << _processID << " broadcast" << endl;
+	fout << _processID << " broadcast" << endl;
 #endif
 	MPI_Bcast(_bodiesM, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 #ifdef DEBUG
-	cout << _processID << " broadcast" << endl;
+	fout << _processID << " broadcast" << endl;
 #endif
 }
 
@@ -94,6 +104,8 @@ void Nbody::RunSimulation(int numSteps)
 		Ring_Barrier();
 #elif defined(BUTTERFLY)
 		Butterfly_Barrier();
+#elif defined(MPI_BARRIER)
+		MPI_Barrier(MPI_COMM_WORLD);
 #endif
 		ShareData();
 		if (_processID == 0) {
@@ -105,7 +117,7 @@ void Nbody::RunSimulation(int numSteps)
 void Nbody::ShareData()
 {
 #ifdef DEBUG
-	cout << _processID << " sharing data" << endl;
+	fout << _processID << " sharing data" << endl;
 #endif
 	int n = _n / _numProcess;
 	for (int p = 0; p < _numProcess; p++) {
@@ -114,7 +126,7 @@ void Nbody::ShareData()
 		MPI_Bcast(&(_bodiesM[p * n]), n, MPI_DOUBLE, p, MPI_COMM_WORLD);
 	}
 #ifdef DEBUG
-	cout << _processID << " done sharing data" << endl;
+	fout << _processID << " done sharing data" << endl;
 #endif
 }
 
@@ -152,22 +164,22 @@ void Nbody::Update()
 void Nbody::PrintBody(int i)
 {
 	if (i >= 0) {
-		std::cout << _t << ", " << _bodiesX[i] << ", " << _bodiesY[i] << std::endl;
+		fout << _t << ", " << _bodiesX[i] << ", " << _bodiesY[i] << std::endl;
 	}
 	else {
-		std::cout << _t << ", ";
+		fout << _t << ", ";
 		for (int i = 0; i < _n; i++) {
-			std::cout << _bodiesX[i] << ", " << _bodiesY[i] << ", ";
+			fout << _bodiesX[i] << ", " << _bodiesY[i] << ", ";
 		}
-		std::cout << std::endl;
+		fout << std::endl;
 	}
 }
 
 void Nbody::PrintBodies(double t)
 {
-	std::cout << t << ", ";
+	fout << t << ", ";
 	for (int i = 0; i < _n; i++) {
-		std::cout << _bodiesX[i] << ", " << _bodiesY[i] << ", ";
+		fout << _bodiesX[i] << ", " << _bodiesY[i] << ", ";
 	}
-	std::cout << endl;
+	fout << endl;
 }
