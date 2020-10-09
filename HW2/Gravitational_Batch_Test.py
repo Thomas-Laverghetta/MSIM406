@@ -16,5 +16,5 @@ for i in range(5):
         end = time.time()
 
         # displaying 
-        f.write(str(i**2) + "," + str(end-start) + "\n")
+        f.write(str(2**i) + "," + str(end-start) + "\n")
         print(end - start)
