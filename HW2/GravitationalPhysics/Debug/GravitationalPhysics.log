@@ -1,0 +1,8 @@
+﻿Nbody.obj : error LNK2019: unresolved external symbol _MPI_Recv referenced in function "public: __thiscall Nbody::Nbody(int,double)" (??0Nbody@@QAE@HN@Z)
+Nbody.obj : error LNK2019: unresolved external symbol _MPI_Bcast referenced in function "public: __thiscall Nbody::Nbody(int,double)" (??0Nbody@@QAE@HN@Z)
+Nbody.obj : error LNK2019: unresolved external symbol _MPI_Comm_size referenced in function "public: __thiscall Nbody::Nbody(int,double)" (??0Nbody@@QAE@HN@Z)
+Nbody.obj : error LNK2019: unresolved external symbol _MPI_Comm_rank referenced in function "public: __thiscall Nbody::Nbody(int,double)" (??0Nbody@@QAE@HN@Z)
+Nbody.obj : error LNK2019: unresolved external symbol _MPI_Init referenced in function "public: __thiscall Nbody::Nbody(int,double)" (??0Nbody@@QAE@HN@Z)
+Nbody.obj : error LNK2019: unresolved external symbol _MPI_Finalize referenced in function "public: __thiscall Nbody::~Nbody(void)" (??1Nbody@@QAE@XZ)
+C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2020.2.254\windows\mpi\intel64\lib\debug\impi.lib : warning LNK4272: library machine type 'x64' conflicts with target machine type 'x86'
+C:\Users\Jim Leathrum\Documents\MSIM 406 Distributed Simulation\Assignments\HW 2\Software\GravitationalPhysics\Debug\GravitationalPhysics.exe : fatal error LNK1120: 6 unresolved externals
