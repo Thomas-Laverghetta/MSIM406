@@ -77,34 +77,52 @@ void Airplane::PrintAirplane()
 }
 
 template <class T>
-void AddDataToBuffer(int * databuffer, int * )
+void AddToBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
+{
+	for (int i = 0; i < sizeof(T) / sizeof(int); i++) {
+		dataBuffer[index++] = dataRef[i];
+	}
+}
 
-void Airplane::Serialize(int* databuffer)
+void Airplane::Serialize(int* dataBuffer)
 {
 	int index = 0;
-	int* dataRef;
-	dataRef = (int*)&x;
-	for (int i = 0; i < sizeof(x) / sizeof(int); i++) {
-		dataBuffer[index++] = dataRef[i];
+
+	AddToBuffer(dataBuffer, (int*)&_planeId, index, _planeId);
+	AddToBuffer(dataBuffer, (int*)&_processorId, index, _processorId);
+	AddToBuffer(dataBuffer, (int*)&_numflightsCompleted, index, _numflightsCompleted);
+	AddToBuffer(dataBuffer, (int*)&_previousProcessor, index, _previousProcessor);
+	AddToBuffer(dataBuffer, (int*)&_cargo.quantity, index, _cargo.quantity);
+	AddToBuffer(dataBuffer, (int*)&_cargo.capacity, index, _cargo.capacity);
+	AddToBuffer(dataBuffer, (int*)&_cargo.size, index, _cargo.size);
+
+
+	//cout << "Serialize: rank " << CommunicationRank() << ": buffersize = " << GetBufferSize() << endl << flush;
+	//for (int i = 0; i < GetBufferSize(); i++) {
+	//	cout << dataBuffer[i] << " ";
+	//}
+	//cout << endl << flush;
+}
+
+template <class T>
+void TakeFromBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
+{
+	for (int i = 0; i < sizeof(T) / sizeof(int); i++) {
+		dataRef[i] = dataBuffer[index++];
 	}
-	dataRef = (int*)&(testStruct1.y);
-	for (int i = 0; i < sizeof(testStruct1.y) / sizeof(int); i++) {
-		dataBuffer[index++] = dataRef[i];
-	}
-	dataRef = (int*)&(testStruct1.j);
-	for (int i = 0; i < sizeof(testStruct1.j) / sizeof(int); i++) {
-		dataBuffer[index++] = dataRef[i];
-	}
-	dataRef = (int*)&(testStruct2->y);
-	for (int i = 0; i < sizeof(testStruct2->y) / sizeof(int); i++) {
-		dataBuffer[index++] = dataRef[i];
-	}
-	dataRef = (int*)&(testStruct2->j);
-	for (int i = 0; i < sizeof(testStruct2->j) / sizeof(int); i++) {
-		dataBuffer[index++] = dataRef[i];
-	}
-	dataRef = (int*)&k;
-	for (int i = 0; i < sizeof(k) / sizeof(int); i++) {
-		dataBuffer[index++] = dataRef[i];
-	}
+}
+
+void Airplane::Deserialize(int* dataBuffer)
+{
+	int index = 0;
+
+	TakeFromBuffer(dataBuffer, (int*)&_planeId, index, _planeId);
+	TakeFromBuffer(dataBuffer, (int*)&_processorId, index, _processorId);
+	TakeFromBuffer(dataBuffer, (int*)&_numflightsCompleted, index, _numflightsCompleted);
+	TakeFromBuffer(dataBuffer, (int*)&_previousProcessor, index, _previousProcessor);
+	TakeFromBuffer(dataBuffer, (int*)&_cargo.quantity, index, _cargo.quantity);
+	TakeFromBuffer(dataBuffer, (int*)&_cargo.capacity, index, _cargo.capacity);
+	TakeFromBuffer(dataBuffer, (int*)&_cargo.size, index, _cargo.size);
+
+	delete dataBuffer;
 }
