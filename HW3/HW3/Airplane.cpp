@@ -5,35 +5,40 @@ Airplane::Airplane(double capacity)
 	_cargo.capacity = capacity;
 
 	// setting IDs
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	_processorId = rank;
+	_processorId = CommunicationRank();
 	_planeId = rand();
 
-	_numflightsCompleted = 0;
+	_numFlights = 0;
 
 }
 
 Airplane::Airplane(int source)
 {
-	Receive(source);
+	// recieve plane
+	Receive(source, 1);
 }
 
 void Airplane::SendFlight(int rank)
 {
-	Send(rank);
+	if (_numFlights != 10) {
+		// send plane
+		Send(rank, 1);
+	}
+	else {
+		// send broadcast. This notifies all that plane is done
+		Broadcast(0);
+	}
 }
 
+// Number of flights completed
 void Airplane::AddFlight()
 {
-	_numflightsCompleted++;
+	_numFlights++;
 }
 
 void Airplane::AddFlightOrigin()
 {
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	_previousProcessor = rank;
+	_lastFlight = CommunicationRank();
 }
 
 void Airplane::AddCargo(double size)
@@ -65,11 +70,8 @@ bool Airplane::Fits(double size)
 
 void Airplane::PrintAirplane()
 {
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
 	printf("Curr Proc %i | Previous Proc %i | Origin rank %i | Plane ID %i | num flights %i | Cargo Quantity %i | Cargo Capacity %f | Cargo Utilized %f\n",
-		rank, _previousProcessor, _processorId, _planeId, _numflightsCompleted, _cargo.quantity, _cargo.capacity, _cargo.size);
+		CommunicationRank(), _lastFlight, _processorId, _planeId, _numFlights, _cargo.quantity, _cargo.capacity, _cargo.size);
 	fflush(stdout);
 }
 
@@ -80,43 +82,33 @@ void AddToBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
 		dataBuffer[index++] = dataRef[i];
 	}
 }
-
 void Airplane::Serialize(int* dataBuffer)
 {
 	int index = 0;
 
-	AddToBuffer(dataBuffer, (int*)&_planeId, index, _planeId);
 	AddToBuffer(dataBuffer, (int*)&_processorId, index, _processorId);
-	AddToBuffer(dataBuffer, (int*)&_numflightsCompleted, index, _numflightsCompleted);
-	AddToBuffer(dataBuffer, (int*)&_previousProcessor, index, _previousProcessor);
+	AddToBuffer(dataBuffer, (int*)&_planeId, index, _planeId);
+	AddToBuffer(dataBuffer, (int*)&_numFlights, index, _numFlights);
+	AddToBuffer(dataBuffer, (int*)&_lastFlight, index, _lastFlight);
 	AddToBuffer(dataBuffer, (int*)&_cargo.quantity, index, _cargo.quantity);
 	AddToBuffer(dataBuffer, (int*)&_cargo.capacity, index, _cargo.capacity);
 	AddToBuffer(dataBuffer, (int*)&_cargo.size, index, _cargo.size);
-
-
-	//cout << "Serialize: rank " << CommunicationRank() << ": buffersize = " << GetBufferSize() << endl << flush;
-	//for (int i = 0; i < GetBufferSize(); i++) {
-	//	cout << dataBuffer[i] << " ";
-	//}
-	//cout << endl << flush;
 }
 
 template <class T>
-void TakeFromBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
-{
+void TakeFromBuffer(int* dataBuffer, int* dataRef, int& index, T obj) {
 	for (int i = 0; i < sizeof(T) / sizeof(int); i++) {
 		dataRef[i] = dataBuffer[index++];
 	}
 }
-
 void Airplane::Deserialize(int* dataBuffer)
 {
 	int index = 0;
 
-	TakeFromBuffer(dataBuffer, (int*)&_planeId, index, _planeId);
 	TakeFromBuffer(dataBuffer, (int*)&_processorId, index, _processorId);
-	TakeFromBuffer(dataBuffer, (int*)&_numflightsCompleted, index, _numflightsCompleted);
-	TakeFromBuffer(dataBuffer, (int*)&_previousProcessor, index, _previousProcessor);
+	TakeFromBuffer(dataBuffer, (int*)&_planeId, index, _planeId);
+	TakeFromBuffer(dataBuffer, (int*)&_numFlights, index, _numFlights);
+	TakeFromBuffer(dataBuffer, (int*)&_lastFlight, index, _lastFlight);
 	TakeFromBuffer(dataBuffer, (int*)&_cargo.quantity, index, _cargo.quantity);
 	TakeFromBuffer(dataBuffer, (int*)&_cargo.capacity, index, _cargo.capacity);
 	TakeFromBuffer(dataBuffer, (int*)&_cargo.size, index, _cargo.size);

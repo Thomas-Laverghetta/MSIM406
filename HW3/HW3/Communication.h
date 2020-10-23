@@ -10,10 +10,11 @@ bool CheckForComm(int &tag, int &source);
 class CommunicationPattern
 {
 public:
-	void Send( int dest);
-	void Receive( int source);
+	void Send(int dest, int tag);
+	void Broadcast(int tag);
+	void Receive(int source, int tag);
 protected:
-	CommunicationPattern();
+	CommunicationPattern() {}
 	virtual const int GetBufferSize() = 0;
 	virtual void Serialize( int *dataBuffer) = 0;
 	virtual void Deserialize( int *dataBuffer) = 0;

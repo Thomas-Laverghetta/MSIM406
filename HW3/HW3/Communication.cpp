@@ -43,11 +43,7 @@ bool CheckForComm( int &tag, int &source)
 	return( flag == 1);
 }
 
-CommunicationPattern::CommunicationPattern()
-{
-}
-
-void CommunicationPattern::Send( int dest)
+void CommunicationPattern::Send(int dest, int tag)
 {
 	int bufferSize;
 	int *dataBuffer;
@@ -56,10 +52,25 @@ void CommunicationPattern::Send( int dest)
 	bufferSize = GetBufferSize();
 	dataBuffer = new int[bufferSize];
 	Serialize( dataBuffer);
-	MPI_Isend( dataBuffer, bufferSize, MPI_INTEGER, dest, 1, MPI_COMM_WORLD, &request);
+	MPI_Isend( dataBuffer, bufferSize, MPI_INTEGER, dest, tag, MPI_COMM_WORLD, &request);
 }
 
-void CommunicationPattern::Receive( int source)
+void CommunicationPattern::Broadcast(int tag) 
+{
+	int bufferSize;
+	int* dataBuffer;
+
+	MPI_Request request;
+	bufferSize = GetBufferSize();
+	dataBuffer = new int[bufferSize];
+	Serialize(dataBuffer);
+	for (int i = 0; i < CommunicationSize(); i++) {
+		if (i != CommunicationRank())
+			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, i, tag, MPI_COMM_WORLD, &request);
+	}
+}
+
+void CommunicationPattern::Receive(int source, int tag)
 {
 	int bufferSize;
 	int *dataBuffer;
@@ -67,6 +78,6 @@ void CommunicationPattern::Receive( int source)
 	MPI_Request request;
 	bufferSize = GetBufferSize();
 	dataBuffer = new int[bufferSize];
-	MPI_Irecv( dataBuffer, bufferSize, MPI_INTEGER, source, 1, MPI_COMM_WORLD, &request);
+	MPI_Irecv( dataBuffer, bufferSize, MPI_INTEGER, source, tag, MPI_COMM_WORLD, &request);
 	Deserialize( dataBuffer);
 }
