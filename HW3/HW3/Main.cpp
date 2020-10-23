@@ -1,6 +1,6 @@
 #include "Communication.h"
 #include "Airplane.h"
-
+#include <stdlib.h>     /* srand, rand */
 #include <iostream>
 using namespace std;
 
@@ -16,10 +16,17 @@ int main( int argc, char *argv[])
 {
 	CommunicationInitialize();
 
+	// plane pointer
 	Airplane* plane;
+
+	// number of initial planes
 	int initNumPlanes = 3;
+
 	// number of planes that have finished and left simulation
 	unsigned int numPlanesFinished = 0;
+
+	// Setting RNG seed
+	srand(CommunicationRank() * 3);
 
 	// initial planes
 	for (int i = 0; i < initNumPlanes; i++) {

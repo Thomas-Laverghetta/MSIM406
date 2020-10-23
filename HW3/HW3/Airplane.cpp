@@ -6,7 +6,8 @@ Airplane::Airplane(double capacity)
 
 	// setting IDs
 	_processorId = CommunicationRank();
-	_planeId = rand();
+	_planeId = rand() % 1000;
+	_lastFlight = _processorId;
 
 	_numFlights = 0;
 
@@ -70,8 +71,8 @@ bool Airplane::Fits(double size)
 
 void Airplane::PrintAirplane()
 {
-	printf("Curr Proc %i | Previous Proc %i | Origin rank %i | Plane ID %i | num flights %i | Cargo Quantity %i | Cargo Capacity %f | Cargo Utilized %f\n",
-		CommunicationRank(), _lastFlight, _processorId, _planeId, _numFlights, _cargo.quantity, _cargo.capacity, _cargo.size);
+	printf("Curr Proc %i | Previous Proc %i | Origin rank %i | Plane ID %4i | num flights %3i | Cargo Quantity %3i | Cargo Capacity %3f | Cargo Utilized %f\n",
+		CommunicationRank(), _lastFlight, _processorId, _planeId, _numFlights, _cargo.quantity, _cargo.capacity, _cargo.size); // | Cargo Utilized %f , _cargo.size
 	fflush(stdout);
 }
 

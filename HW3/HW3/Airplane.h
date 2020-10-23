@@ -54,7 +54,7 @@ private:
 	unsigned int _planeId;
 	unsigned int _processorId;
 	
-	unsigned int _numFlights;				// number of flights completed
+	unsigned int _numFlights;		// number of flights completed
 	unsigned int _lastFlight;		// last processor
 
 	// Cargo Specifications
