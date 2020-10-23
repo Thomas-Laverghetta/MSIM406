@@ -8,7 +8,7 @@ class Airplane : public CommunicationPattern
 {
 public:
 	Airplane(double capacity);
-	Airplane(int* source);
+	Airplane(int source);
 
 	/// Sends the airplane to the process indicated by rank. 
 	/// \param rank
@@ -28,7 +28,6 @@ public:
 	void PrintAirplane();
 private:
 	// deserialization
-	int* inBuffer;
 	const int GetBufferSize() {
 		return ((sizeof(_planeId) +
 			sizeof(_previousProcessor) +

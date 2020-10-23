@@ -148,14 +148,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Airplane.cpp" />
-    <ClCompile Include="Barrier.cpp" />
-    <ClCompile Include="Main.cpp" />
-    <ClCompile Include="Nbody.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Communication.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Airplane.h" />
-    <ClInclude Include="Barrier.h" />
-    <ClInclude Include="Nbody.h" />
+    <ClInclude Include="Communication.h" />
     <ClInclude Include="TestHarness.h" />
   </ItemGroup>
   <ItemGroup>

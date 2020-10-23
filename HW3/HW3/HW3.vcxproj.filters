@@ -18,13 +18,10 @@
     <ClCompile Include="Airplane.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Main.cpp">
+    <ClCompile Include="Communication.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Barrier.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Nbody.cpp">
+    <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -32,13 +29,10 @@
     <ClInclude Include="Airplane.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Barrier.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Nbody.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="TestHarness.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Communication.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

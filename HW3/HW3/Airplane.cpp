@@ -12,19 +12,16 @@ Airplane::Airplane(double capacity)
 
 	_numflightsCompleted = 0;
 
-	inBuffer = new int[GetBufferSize()];
 }
 
-Airplane::Airplane(int * source)
+Airplane::Airplane(int source)
 {
-	Deserialize(source);
+	Receive(source);
 }
 
 void Airplane::SendFlight(int rank)
 {
-	Serialize(inBuffer);
-
-	// send MPI HERE
+	Send(rank);
 }
 
 void Airplane::AddFlight()
