@@ -17,13 +17,21 @@ int main( int argc, char *argv[])
 	CommunicationInitialize();
 
 	Airplane* plane;
-
+	int initNumPlanes = 3;
 	// number of planes that have finished and left simulation
 	unsigned int numPlanesFinished = 0;
 
+	// initial planes
+	for (int i = 0; i < initNumPlanes; i++) {
+		plane = new Airplane(1.0f);
+		plane->PrintAirplane();
+		plane->SendFlight(GetNextDest());
+		delete plane;
+		plane = nullptr;
+	}
 
 	// while not all planes have finished
-	while (numPlanesFinished < CommunicationSize() * 3) {
+	while (numPlanesFinished < CommunicationSize() * initNumPlanes) {
 		int tag;
 		int source;
 		while (!(CheckForComm(tag, source)));
@@ -55,5 +63,5 @@ int main( int argc, char *argv[])
 
 	CommunicationFinalize();
 
-	cout << "rank " << CommunicationRank() << " done" << endl << flush;
+	std::cout << "rank " << CommunicationRank() << " done" << std::endl << std::flush;
 }
