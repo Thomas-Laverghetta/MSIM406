@@ -3,6 +3,12 @@
 #include <stdio.h>
 #include "mpi.h"
 
+// Cargo for the plane
+struct Cargo { 
+	unsigned int quantity = 0; 
+	double capacity = 0.0f; 
+	double size = 0.0f; 
+};
 
 class Airplane : CommunicationPattern
 {
@@ -17,30 +23,30 @@ public:
 	void AddFlight();
 
 	/// Gets the number of flights completed
-	unsigned int GetNumFlights() { return _numFlights; }
+	bool MaxFlight() { return _numFlights == _maxFlgihts; }
 
 	/// sets the origin of the last flight
 	void AddFlightOrigin();
 
-	/// 
+	/// Adds cargo to plane
 	void AddCargo(double size);
 
-
+	/// Removes cargo from plane
 	void RemoveCargo(double size);
 
-
+	/// Returns number of items in cargo
 	int GetCargoQuantity();
 
-
+	/// Returns how much space utilized
 	double GetCargoSize();
 
-
+	/// Returns whether or not item with this size can fit
 	bool Fits(double size);
 
-
+	/// Prints the plane console
 	void PrintAirplane();
 private:
-	// deserialization
+	// Serialization Methods
 	const int GetBufferSize() {
 		return ((sizeof(_planeId) +
 			sizeof(_processorId) +
@@ -61,8 +67,9 @@ private:
 	unsigned int _numFlights;		// number of flights completed
 	unsigned int _lastFlight;		// last processor
 
-	// Cargo Specifications
-	struct Cargo { unsigned int quantity = 0; double capacity = 0.0f; double size = 0.0f; };
+	const unsigned int _maxFlgihts = 10;	// maximum number of flights
+
+	// Cargo for this plane
 	Cargo _cargo;
 };
 

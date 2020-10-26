@@ -53,6 +53,7 @@ void CommunicationPattern::Send(int dest, int tag)
 	dataBuffer = new int[bufferSize];
 	Serialize( dataBuffer);
 	MPI_Isend( dataBuffer, bufferSize, MPI_INTEGER, dest, tag, MPI_COMM_WORLD, &request);
+	delete[] dataBuffer;
 }
 
 void CommunicationPattern::Broadcast(int tag) 
@@ -65,9 +66,11 @@ void CommunicationPattern::Broadcast(int tag)
 	dataBuffer = new int[bufferSize];
 	Serialize(dataBuffer);
 	for (int i = 0; i < CommunicationSize(); i++) {
-		if (i != CommunicationRank())
+		if (i != CommunicationRank()) {
 			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, i, tag, MPI_COMM_WORLD, &request);
+		}
 	}
+	delete[] dataBuffer;
 }
 
 void CommunicationPattern::Receive(int source, int tag)
@@ -80,4 +83,5 @@ void CommunicationPattern::Receive(int source, int tag)
 	dataBuffer = new int[bufferSize];
 	MPI_Irecv( dataBuffer, bufferSize, MPI_INTEGER, source, tag, MPI_COMM_WORLD, &request);
 	Deserialize( dataBuffer);
+	delete[] dataBuffer;
 }

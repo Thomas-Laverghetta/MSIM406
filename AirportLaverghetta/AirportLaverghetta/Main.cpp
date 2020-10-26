@@ -52,9 +52,8 @@ int main( int argc, char *argv[])
 			plane->AddFlight();
 
 			// determing if plane has finished and will be broadcasted
-			if (plane->GetNumFlights() == 10) {
+			if (plane->MaxFlight()) {
 				// plane finished
-				printf("\tPLANE FINISHED RECV | ");
 				numPlanesFinished++;
 			}
 			plane->PrintAirplane();
@@ -65,7 +64,6 @@ int main( int argc, char *argv[])
 		// tag = 0 == plane is finished
 		else {
 			// plane finished
-			printf("\tPLANE FINISHED RECV | ");
 			plane->PrintAirplane();
 			numPlanesFinished++;
 		}

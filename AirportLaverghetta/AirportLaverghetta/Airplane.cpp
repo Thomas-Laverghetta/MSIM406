@@ -14,7 +14,6 @@ Airplane::Airplane(double capacity)
 	_lastFlight = _processorId;
 
 	_numFlights = 0;
-
 }
 
 Airplane::Airplane(int source)
@@ -25,7 +24,7 @@ Airplane::Airplane(int source)
 
 void Airplane::SendFlight(int rank)
 {
-	if (_numFlights != 10) {
+	if (_numFlights != _maxFlgihts) {
 		// send plane
 		Send(rank, 1);
 	}
@@ -121,6 +120,4 @@ void Airplane::Deserialize(int* dataBuffer)
 	TakeFromBuffer(dataBuffer, (int*)&_cargo.quantity, index, _cargo.quantity);
 	TakeFromBuffer(dataBuffer, (int*)&_cargo.capacity, index, _cargo.capacity);
 	TakeFromBuffer(dataBuffer, (int*)&_cargo.size, index, _cargo.size);
-
-	delete dataBuffer;
 }
