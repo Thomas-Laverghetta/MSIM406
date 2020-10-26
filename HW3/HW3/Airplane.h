@@ -16,6 +16,9 @@ public:
 	/// increments num flights
 	void AddFlight();
 
+	/// Gets the number of flights completed
+	unsigned int GetNumFlights() { return _numFlights; }
+
 	/// sets the origin of the last flight
 	void AddFlightOrigin();
 
@@ -40,6 +43,7 @@ private:
 	// deserialization
 	const int GetBufferSize() {
 		return ((sizeof(_planeId) +
+			sizeof(_processorId) +
 			sizeof(_lastFlight) +
 			sizeof(_numFlights) +
 			sizeof(_cargo.capacity) +

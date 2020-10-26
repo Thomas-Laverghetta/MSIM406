@@ -49,9 +49,16 @@ int main( int argc, char *argv[])
 		// tag = 1 == plane coming in
 		if (tag) {
 			// send plane
-			plane->PrintAirplane();
 			plane->AddFlight();
-			plane->AddFlightOrigin();
+
+			// determing if plane has finished and will be broadcasted
+			if (plane->GetNumFlights() == 10) {
+				// plane finished
+				printf("\tPLANE FINISHED RECV | ");
+				numPlanesFinished++;
+			}
+			plane->PrintAirplane();
+			plane->AddFlightOrigin();			
 			plane->SendFlight(GetNextDest());
 		}
 

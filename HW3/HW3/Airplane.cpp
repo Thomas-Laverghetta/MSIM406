@@ -1,5 +1,9 @@
 #include "Airplane.h"
+#include <iostream>
 #include <random>
+
+using namespace std;
+
 Airplane::Airplane(double capacity)
 {
 	_cargo.capacity = capacity;
@@ -44,8 +48,10 @@ void Airplane::AddFlightOrigin()
 
 void Airplane::AddCargo(double size)
 {
-	_cargo.quantity++;
-	_cargo.size += size;
+	if (Fits(size)) {
+		_cargo.quantity++;
+		_cargo.size += size;
+	}
 }
 
 void Airplane::RemoveCargo(double size)
@@ -71,8 +77,9 @@ bool Airplane::Fits(double size)
 
 void Airplane::PrintAirplane()
 {
-	printf("Curr Proc %i | Previous Proc %i | Origin rank %i | Plane ID %4i | num flights %3i | Cargo Quantity %3i | Cargo Capacity %3f | Cargo Utilized %f\n",
-		CommunicationRank(), _lastFlight, _processorId, _planeId, _numFlights, _cargo.quantity, _cargo.capacity, _cargo.size); // | Cargo Utilized %f , _cargo.size
+	printf("Curr Proc %i | Previous Proc %i | Origin Proc %i | Plane ID %4i | num flights %3i | Cargo Quantity %3i | Cargo Capacity %3f | Cargo Utilized %f\n",
+		CommunicationRank(), _lastFlight, _processorId, _planeId, _numFlights, _cargo.quantity, _cargo.capacity, _cargo.size);
+
 	fflush(stdout);
 }
 
@@ -97,7 +104,8 @@ void Airplane::Serialize(int* dataBuffer)
 }
 
 template <class T>
-void TakeFromBuffer(int* dataBuffer, int* dataRef, int& index, T obj) {
+void TakeFromBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
+{
 	for (int i = 0; i < sizeof(T) / sizeof(int); i++) {
 		dataRef[i] = dataBuffer[index++];
 	}
