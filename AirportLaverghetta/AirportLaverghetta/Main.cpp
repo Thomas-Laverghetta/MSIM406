@@ -56,6 +56,7 @@ int main( int argc, char *argv[])
 				// plane finished
 				numPlanesFinished++;
 			}
+
 			plane->PrintAirplane();
 			plane->AddFlightOrigin();			
 			plane->SendFlight(GetNextDest());
@@ -64,7 +65,6 @@ int main( int argc, char *argv[])
 		// tag = 0 == plane is finished
 		else {
 			// plane finished
-			plane->PrintAirplane();
 			numPlanesFinished++;
 		}
 
