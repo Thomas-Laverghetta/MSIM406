@@ -76,9 +76,11 @@ bool Airplane::Fits(double size)
 
 void Airplane::PrintAirplane()
 {
-	printf("Curr Proc %i | Previous Proc %i | Origin Proc %i | Plane ID %4i | num flights %3i | Cargo Quantity %3i | Cargo Capacity %3f | Cargo Utilized %f\n",
-		CommunicationRank(), _lastFlight, _processorId, _planeId, _numFlights, _cargo.quantity, _cargo.capacity, _cargo.size);
+	//printf("Curr Proc %i | Previous Proc %i | Origin Proc %i | Plane ID %4i | num flights %3i | Cargo Quantity %3i | Cargo Capacity %3f | Cargo Utilized %f\n",
+	//	CommunicationRank(), _lastFlight, _processorId, _planeId, _numFlights, _cargo.quantity, _cargo.capacity, _cargo.size);
 
+	printf("%i,%i,%i,%i,%i,%i,%f,%f\n",
+		CommunicationRank(), _lastFlight, _processorId, _planeId, _numFlights, _cargo.quantity, _cargo.capacity, _cargo.size);
 	fflush(stdout);
 }
 
