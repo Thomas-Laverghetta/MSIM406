@@ -84,15 +84,9 @@ void Airplane::PrintAirplane()
 	fflush(stdout);
 }
 
-template <class T>
-void AddToBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
-{
-	for (int i = 0; i < sizeof(T) / sizeof(int); i++) {
-		dataBuffer[index++] = dataRef[i];
-	}
-}
+
 void Airplane::Serialize(int* dataBuffer)
-{
+{  
 	int index = 0;
 
 	AddToBuffer(dataBuffer, (int*)&_processorId, index, _processorId);
@@ -104,13 +98,7 @@ void Airplane::Serialize(int* dataBuffer)
 	AddToBuffer(dataBuffer, (int*)&_cargo.size, index, _cargo.size);
 }
 
-template <class T>
-void TakeFromBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
-{
-	for (int i = 0; i < sizeof(T) / sizeof(int); i++) {
-		dataRef[i] = dataBuffer[index++];
-	}
-}
+
 void Airplane::Deserialize(int* dataBuffer)
 {
 	int index = 0;

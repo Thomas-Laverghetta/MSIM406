@@ -64,7 +64,6 @@ int main( int argc, char *argv[])
 		// tag = 0 == plane is finished
 		else {
 			// plane finished
-			plane->PrintAirplane();
 			numPlanesFinished++;
 		}
 
