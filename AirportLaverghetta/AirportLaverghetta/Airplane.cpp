@@ -19,7 +19,7 @@ Airplane::Airplane(double capacity)
 Airplane::Airplane(int source)
 {
 	// recieve plane
-	Receive(source, 1);
+	Receive(source);
 }
 
 void Airplane::SendFlight(int rank)

@@ -81,7 +81,7 @@ void CommunicationPattern::Receive(int source, int tag)
 	MPI_Request request;
 	bufferSize = GetBufferSize();
 	dataBuffer = new int[bufferSize];
-	MPI_Irecv( dataBuffer, bufferSize, MPI_INTEGER, source, tag, MPI_COMM_WORLD, &request);
+	MPI_Irecv( dataBuffer, bufferSize, MPI_INTEGER, source, (tag == -1 ? MPI_ANY_TAG : tag), MPI_COMM_WORLD, &request);
 	Deserialize( dataBuffer);
 	delete[] dataBuffer;
 }

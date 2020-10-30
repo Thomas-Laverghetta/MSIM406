@@ -12,7 +12,7 @@ class CommunicationPattern
 public:
 	void Send(int dest, int tag = 1);
 	void Broadcast(int tag = 0);
-	void Receive(int source, int tag = 1);
+	void Receive(int source, int tag = -1);
 protected:
 	CommunicationPattern() {}
 	template <class T>
