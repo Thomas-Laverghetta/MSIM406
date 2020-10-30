@@ -15,6 +15,22 @@ public:
 	void Receive(int source, int tag = 1);
 protected:
 	CommunicationPattern() {}
+	template <class T>
+	void AddToBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
+	{
+		for (int i = 0; i < sizeof(T) / sizeof(int); i++) {
+			dataBuffer[index++] = dataRef[i];
+		}
+	}
+
+	template <class T>
+	void TakeFromBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
+	{
+		for (int i = 0; i < sizeof(T) / sizeof(int); i++) {
+			dataRef[i] = dataBuffer[index++];
+		}
+	}
+
 	virtual const int GetBufferSize() = 0;
 	virtual void Serialize( int *dataBuffer) = 0;
 	virtual void Deserialize( int *dataBuffer) = 0;
