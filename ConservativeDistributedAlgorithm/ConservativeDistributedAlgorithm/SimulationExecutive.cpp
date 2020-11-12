@@ -4,6 +4,9 @@
 #include "mpi.h"
 #include <iostream>
 #include <unordered_map>
+#include <thread>
+
+
 
 using namespace std;
 
@@ -31,8 +34,8 @@ int NULL_MSG::_classId = EventAction::GlobalClassId++;
 
 //-------------SIMULATION EXEC--------------------
 // Simulation Executive private variables:
-Time SimulationTime;			// simulation time
-Time Lookahead;					// simulation lookahead
+Time SimulationTime = 0;		// simulation time
+Time Lookahead = 0;				// simulation lookahead
 Time* LastEventTimeSent;		// times of last sent times
 unordered_map<unsigned int, NewFunctor> EventClassMap; // mapping of class id to new methods
 EventSet InternalQ;				// this process internal Q
@@ -121,18 +124,24 @@ void Receive(int source, int tag)
 	int bufferSize = ea->GetBufferSize() + sizeof(Time) / sizeof(int);
 	int * dataBuffer = new int[bufferSize];
 	MPI_Request request;
-	MPI_Irecv(dataBuffer, bufferSize, MPI_INTEGER, source, (tag == -1 ? MPI_ANY_TAG : tag), MPI_COMM_WORLD, &request);
+
+	MPI_Irecv(dataBuffer, bufferSize, MPI_INTEGER, source, tag, MPI_COMM_WORLD, &request);
 
 	// deserialize time and event
-	int index;
+	int index = 0;
 	Time t = 0;
 	EventAction::TakeFromBuffer(dataBuffer, (int*)&t, index, t);
 	ea->Deserialize(dataBuffer, index);
 
 	// add to queue
-	IncomingQ[source].AddEvent(t, ea);
+	IncomingQ[(source >= CommunicationRank() ? source - 1 : source)].AddEvent(t, ea);
 
 	delete[] dataBuffer;
+
+#ifdef DEBUG
+	cout << "MSG recv d : " << source << " : " << t << endl; fflush(stdout);
+	this_thread::sleep_for(2s);
+#endif
 }
 
 // Simulation Executive public Methods:
@@ -160,31 +169,36 @@ bool IncomingQueuesEmpty() {
 void RunSimulation(Time T)
 {
 	// send null msg to all LPs
-	Broadcast(Lookahead, new NULL_MSG);
+	Broadcast(Lookahead, new NULL_MSG); 
 
 	// setting initial message send time
 	for (int i = 0; i < NUM_PROCESS - 1; i++) { LastEventTimeSent[i] = Lookahead; }
 
-	while (SimulationTime <= T) {
+	bool LOOP = true;
+	while (LOOP) {
 		// while a incomingQ is empty, check comms and add any new events to incomingQs 
 		while (IncomingQueuesEmpty()) {
 			int source, tag;
 			while (!(CheckForComm(tag, source)));
 			Receive(source, tag);	// will deserialize and add event to queue
 		}
-
+		
 		// finding safe time
-		Time safe = TIME_MAX;
+		Time safe = DBL_MAX;
 		for (int i = 0; i < NUM_PROCESS - 1; i++) {
 			safe = IncomingQ[i].GetEventTime() * (IncomingQ[i].GetEventTime() < safe) + safe * (IncomingQ[i].GetEventTime() >= safe);
 		}
 
+#ifdef DEBUG
+		cout << "Safe : " << safe << endl; fflush(stdout);
+		this_thread::sleep_for(3s);
+#endif
 		// getting all executable events and adding them to execution set
-		while (InternalQ.GetEventTime() <= safe) {
+		while (!InternalQ.isEmpty() && InternalQ.GetEventTime() <= safe) {
 			ExecutionSet.AddEvent(InternalQ.GetEventTime(), InternalQ.GetEventAction());
 		}
 		for (int i = 0; i < NUM_PROCESS - 1; i++) {
-			while (IncomingQ[i].GetEventTime() <= safe) {
+			while (!IncomingQ[i].isEmpty() && IncomingQ[i].GetEventTime() <= safe) {
 				ExecutionSet.AddEvent(IncomingQ[i].GetEventTime(), IncomingQ[i].GetEventAction());
 			}
 		}
@@ -192,12 +206,22 @@ void RunSimulation(Time T)
 		// executing events
 		while (!ExecutionSet.isEmpty()) {
 			SimulationTime = ExecutionSet.GetEventTime();
+
+			// if simulation time is greater than termination time then terminate
+			if (SimulationTime > T) {
+				LOOP = false;		// signals while loop to stop
+				break;
+			}
+
 			EventAction * ea = ExecutionSet.GetEventAction();
 			ea->Execute();
 			delete ea;
 
+			cout << "SimTime : " << SimulationTime << endl; fflush(stdout);
+			this_thread::sleep_for(1s);
+
 			// sending output queues
-			while (outputQ.GetEventTime() <= SimulationTime + Lookahead) {
+			while (!outputQ.isEmpty() && outputQ.GetEventTime() <= SimulationTime + Lookahead) {
 				// will serialize and send to LP
 				Send(outputQ.GetLP(), outputQ.GetEventTime(), outputQ.GetEventAction());
 			}
@@ -208,8 +232,18 @@ void RunSimulation(Time T)
 					Send((i >= CommunicationRank() ? i + 1 : i), SimulationTime + Lookahead, new NULL_MSG);
 				}
 			}
+#ifdef DEBUG
+			cout << " Sent Null msgs "<< endl; fflush(stdout);
+			this_thread::sleep_for(2s);
+#endif
 		}
+#ifdef DEBUG
+		cout << "NEXT LOOP" << endl; fflush(stdout);
+		this_thread::sleep_for(2s);
+#endif 		
 	}
+	// finalizing simulation
+	CommunicationFinalize();
 }
 
 void InitializeSimulation()
@@ -227,6 +261,6 @@ void InitializeSimulation()
 	RegisterEventActionClass(NULL_MSG::_classId, NULL_MSG::New);
 }
 
-void SetLookahead(Time lookahead) { Lookahead = lookahead; }
+void SetSimulationLookahead(Time lookahead) { Lookahead = lookahead; }
 
 void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor) { EventClassMap[classId] = newFunctor; }

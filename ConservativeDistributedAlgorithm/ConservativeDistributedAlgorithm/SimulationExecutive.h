@@ -1,10 +1,12 @@
+#pragma once
 #ifndef SIMULATION_EXEC_H
 #define SIMULATION_EXEC_H
 
 #include <float.h>
 
 typedef double Time;
-Time TIME_MAX = DBL_MAX;
+//Time TIME_MAX = ;
+
 
 class EventAction {
 public:
@@ -60,7 +62,7 @@ void RunSimulation(Time T);
 void InitializeSimulation();
 
 // Sets system wide lookahead
-void SetLookahead(Time lookahead);
+void SetSimulationLookahead(Time lookahead);
 
 // Register EA class
 void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor);
