@@ -244,6 +244,18 @@ void RunSimulation(Time T)
 	}
 	// finalizing simulation
 	CommunicationFinalize();
+
+	// mem management
+	delete[] IncomingQ;
+	delete[] LastEventTimeSent;
+
+	// destoying sets
+	InternalQ.~EventSet();
+	ExecutionSet.~EventSet();
+	outputQ.~OutEventSet();
+
+	// resetting simulation variables
+	SimulationTime = 0;
 }
 
 void InitializeSimulation()
