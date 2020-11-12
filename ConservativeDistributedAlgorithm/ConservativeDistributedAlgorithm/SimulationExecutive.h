@@ -17,6 +17,11 @@ public:
 	// deserializes data from buffer
 	virtual void Deserialize(int* dataBuffer) = 0;
 
+	// returns class Id 
+	virtual int GetClassId() = 0;
+
+	// global class Id 
+	static int GlobalClassId;
 protected:
 	// Adds data from variable to buffer (serializes data)
 	template <class T>

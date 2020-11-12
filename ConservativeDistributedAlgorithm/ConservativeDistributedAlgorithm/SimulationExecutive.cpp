@@ -1,10 +1,15 @@
 #include "SimulationExecutive.h"
 #include "EventSet.hpp"
+#include "OutputEventSet.hpp"
 #include "mpi.h"
 #include <iostream>
 #include <unordered_map>
 
 using namespace std;
+
+// init global Event action id
+int EventAction::GlobalClassId = 0;
+
 // Null msg
 class NullEA : public EventAction {
 public:
@@ -13,8 +18,18 @@ public:
 	const int GetBufferSize() { return 0; }
 	void Serialize(int* dataBuffer) {}
 	void Deserialize(int* dataBuffer) {}
-};
 
+	static int _classId;
+
+	int GetClassId() {
+		return _classId;
+	}
+
+	static EventAction* New() {
+		return new NullEA;
+	}
+};
+int NullEA::_classId = EventAction::GlobalClassId++;
 
 //----------------Comm-------------------
 int processID = -1;
@@ -52,29 +67,42 @@ bool CheckForComm(int& tag, int& source)
 	return(flag == 1);
 }
 
-void Send(int dest, int tag, int* dataBuffer, int bufferSize)
+void Send(int dest, EventAction * ea)
 {
+	int bufferSize = ea->GetBufferSize();
+	int* dataBuffer = new int[bufferSize];
+	ea->Serialize(dataBuffer);
+
 	MPI_Request request;
-	MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, dest, tag, MPI_COMM_WORLD, &request);
+	MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, dest, ea->GetClassId(), MPI_COMM_WORLD, &request);
 	delete[] dataBuffer;
 }
 
-void Broadcast(int tag, int* dataBuffer, int bufferSize)
+void Broadcast(EventAction * ea)
 {
+	int bufferSize = ea->GetBufferSize();
+	int* dataBuffer = new int[bufferSize];
+	ea->Serialize(dataBuffer);
+
 	MPI_Request request;
 	for (int i = 0; i < CommunicationSize(); i++) {
 		if (i != CommunicationRank()) {
-			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, i, tag, MPI_COMM_WORLD, &request);
+			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, i, ea->GetClassId(), MPI_COMM_WORLD, &request);
 		}
 	}
 	delete[] dataBuffer;
 }
 
-void Receive(int source, int tag, int* dataBuffer, int bufferSize)
+void Receive(int source, int tag)
 {
-
+	// tag is class Id
+	EventAction* ea = EventClassMap[tag]();
+	int bufferSize = ea->GetBufferSize();
+	int * dataBuffer = new int[bufferSize];
 	MPI_Request request;
 	MPI_Irecv(dataBuffer, bufferSize, MPI_INTEGER, source, (tag == -1 ? MPI_ANY_TAG : tag), MPI_COMM_WORLD, &request);
+	ea->Deserialize(dataBuffer);
+	delete[] dataBuffer;
 }
 
 //-------------SIMULATION EXEC--------------------
@@ -85,6 +113,8 @@ Time* LastEventTimeSent;		// times of last sent times
 unordered_map<unsigned int, NewFunctor> EventClassMap; // mapping of class id to new methods
 EventSet InternalQ;				// this process internal Q
 EventSet* IncomingQ;			// incoming event queues for all LPs
+EventSet ExecutionSet;			// Set for executing events
+OutEventSet outputQ;			// events to be sent out
 
 
 // Simulation Executive public Methods:
@@ -92,11 +122,17 @@ Time GetSimulationTime(){ return SimulationTime; }
 
 void ScheduleEventIn(const Time& deltaT, EventAction* ea, int LP)
 {
-
+	if (LP == CommunicationRank()) {
+		InternalQ.AddEvent(deltaT + SimulationTime, ea);
+	}
+	else {
+		outputQ.AddEvent(deltaT + SimulationTime, ea, LP);
+	}
 }
 
 void RunSimulation(Time T)
 {
+
 }
 
 void InitializeSimulation()
@@ -109,10 +145,11 @@ void InitializeSimulation()
 
 	// creating array of incoming queues for each LP
 	IncomingQ = new EventSet[CommunicationSize() - 1];
+
+	// registering null message
+	RegisterEventActionClass(NullEA::_classId, NullEA::New);
 }
 
 void SetLookahead(Time lookahead) { Lookahead = lookahead; }
 
-void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor)
-{
-}
+void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor) { EventClassMap[classId] = newFunctor; }
