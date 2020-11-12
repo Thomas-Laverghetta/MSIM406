@@ -196,18 +196,18 @@ void RunSimulation(Time T)
 			EventAction * ea = ExecutionSet.GetEventAction();
 			ea->Execute();
 			delete ea;
-		}
 
-		// sending output queues
-		while (outputQ.GetEventTime() <= SimulationTime + Lookahead) {
-			// will serialize and send to LP
-			Send(outputQ.GetLP(), outputQ.GetEventTime(), outputQ.GetEventAction());
-		}
+			// sending output queues
+			while (outputQ.GetEventTime() <= SimulationTime + Lookahead) {
+				// will serialize and send to LP
+				Send(outputQ.GetLP(), outputQ.GetEventTime(), outputQ.GetEventAction());
+			}
 
-		// sending null msgs
-		for (int i = 0; i < CommunicationSize() - 1; i++) {
-			if (LastEventTimeSent[i] < SimulationTime + Lookahead) {
-				Send((i >= CommunicationRank() ? i + 1 : i), SimulationTime + Lookahead, new NullEA);
+			// sending null msgs
+			for (int i = 0; i < CommunicationSize() - 1; i++) {
+				if (LastEventTimeSent[i] < SimulationTime + Lookahead) {
+					Send((i >= CommunicationRank() ? i + 1 : i), SimulationTime + Lookahead, new NullEA);
+				}
 			}
 		}
 	}
