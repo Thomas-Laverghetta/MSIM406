@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Communication.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -26,13 +23,13 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Communication.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="TestHarness.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SimulationExecutive.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="EventSet.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="OutputEventSet.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

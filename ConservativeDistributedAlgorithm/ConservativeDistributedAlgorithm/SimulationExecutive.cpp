@@ -29,6 +29,17 @@ public:
 };
 int NullEA::_classId = EventAction::GlobalClassId++;
 
+//-------------SIMULATION EXEC--------------------
+// Simulation Executive private variables:
+Time SimulationTime;			// simulation time
+Time Lookahead;					// simulation lookahead
+Time* LastEventTimeSent;		// times of last sent times
+unordered_map<unsigned int, NewFunctor> EventClassMap; // mapping of class id to new methods
+EventSet InternalQ;				// this process internal Q
+EventSet* IncomingQ;			// incoming event queues for all LPs
+EventSet ExecutionSet;			// Set for executing events
+OutEventSet outputQ;			// events to be sent out
+
 //----------------Comm-------------------
 int processID = -1;
 int numProcess = -1;
@@ -114,7 +125,7 @@ void Receive(int source, int tag)
 
 	// deserialize time and event
 	int index;
-	Time t;
+	Time t = 0;
 	EventAction::TakeFromBuffer(dataBuffer, (int*)&t, index, t);
 	ea->Deserialize(dataBuffer, index);
 
@@ -123,17 +134,6 @@ void Receive(int source, int tag)
 
 	delete[] dataBuffer;
 }
-
-//-------------SIMULATION EXEC--------------------
-// Simulation Executive private variables:
-Time SimulationTime;			// simulation time
-Time Lookahead;					// simulation lookahead
-Time* LastEventTimeSent;		// times of last sent times
-unordered_map<unsigned int, NewFunctor> EventClassMap; // mapping of class id to new methods
-EventSet InternalQ;				// this process internal Q
-EventSet* IncomingQ;			// incoming event queues for all LPs
-EventSet ExecutionSet;			// Set for executing events
-OutEventSet outputQ;			// events to be sent out
 
 
 // Simulation Executive public Methods:

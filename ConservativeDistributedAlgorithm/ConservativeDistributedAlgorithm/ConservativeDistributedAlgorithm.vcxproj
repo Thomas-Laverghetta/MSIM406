@@ -147,14 +147,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Communication.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="SimulationExecutive.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Communication.h" />
+    <ClInclude Include="EventSet.hpp" />
+    <ClInclude Include="OutputEventSet.hpp" />
     <ClInclude Include="SimulationExecutive.h" />
-    <ClInclude Include="TestHarness.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
