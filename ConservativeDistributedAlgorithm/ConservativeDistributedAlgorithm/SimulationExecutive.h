@@ -64,6 +64,12 @@ void SetLookahead(Time lookahead);
 
 // Register EA class
 void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor);
+
+// returns process id 
+int CommunicationRank();
+
+// Returns number of processes
+int CommunicationSize();
 #endif // !SIMULATION_EXEC_H
 
 

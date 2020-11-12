@@ -11,9 +11,9 @@ using namespace std;
 int EventAction::GlobalClassId = 0;
 
 // Null msg
-class NullEA : public EventAction {
+class NULL_MSG : public EventAction {
 public:
-	NullEA() {}
+	NULL_MSG() {}
 	void Execute() {}
 	const int GetBufferSize() { return 0; }
 	void Serialize(int* dataBuffer, int& index) {}
@@ -25,9 +25,9 @@ public:
 		return _classId;
 	}
 
-	static EventAction* New() { return new NullEA; }
+	static EventAction* New() { return new NULL_MSG; }
 };
-int NullEA::_classId = EventAction::GlobalClassId++;
+int NULL_MSG::_classId = EventAction::GlobalClassId++;
 
 //-------------SIMULATION EXEC--------------------
 // Simulation Executive private variables:
@@ -41,28 +41,28 @@ EventSet ExecutionSet;			// Set for executing events
 OutEventSet outputQ;			// events to be sent out
 
 //----------------Comm-------------------
-int processID = -1;
-int numProcess = -1;
+int PROCESS_RANK = -1;
+int NUM_PROCESS = -1;
 
 void CommunicationInitialize()
 {
 	int* argc = 0;
 	char*** argv = 0;
 	MPI_Init(NULL, NULL);
-	MPI_Comm_rank(MPI_COMM_WORLD, &processID);
-	MPI_Comm_size(MPI_COMM_WORLD, &numProcess);
+	MPI_Comm_rank(MPI_COMM_WORLD, &PROCESS_RANK);
+	MPI_Comm_size(MPI_COMM_WORLD, &NUM_PROCESS);
 }
 
 void CommunicationFinalize()
 {
-	cout << processID << " in finalize" << endl;
+	cout << PROCESS_RANK << " in finalize" << endl;
 	MPI_Finalize();
-	cout << processID << " done finalize" << endl;
+	cout << PROCESS_RANK << " done finalize" << endl;
 }
 
-int CommunicationRank() { return processID; }
+int CommunicationRank() { return PROCESS_RANK; }
 
-int CommunicationSize(){ return numProcess; }
+int CommunicationSize(){ return NUM_PROCESS; }
 
 bool CheckForComm(int& tag, int& source)
 {
@@ -91,7 +91,7 @@ void Send(int dest, const Time& t, EventAction * ea)
 	delete[] dataBuffer;
 	delete ea;
 
-	LastEventTimeSent[(dest >= CommunicationRank() ? dest - 1 : dest)] = t;
+	LastEventTimeSent[(dest >= PROCESS_RANK ? dest - 1 : dest)] = t;
 }
 
 void Broadcast(Time t, EventAction * ea)
@@ -135,7 +135,6 @@ void Receive(int source, int tag)
 	delete[] dataBuffer;
 }
 
-
 // Simulation Executive public Methods:
 Time GetSimulationTime(){ return SimulationTime; }
 
@@ -152,7 +151,7 @@ void ScheduleEventIn(const Time& deltaT, EventAction* ea, int LP)
 // returns true if any incoming Q is empty
 bool IncomingQueuesEmpty() {
 	int numEmpty = 0;
-	for (int j = 0; j < CommunicationSize() - 1; j++) {
+	for (int j = 0; j < NUM_PROCESS - 1; j++) {
 		numEmpty += IncomingQ[j].isEmpty();
 	}
 	return numEmpty > 0;
@@ -161,10 +160,10 @@ bool IncomingQueuesEmpty() {
 void RunSimulation(Time T)
 {
 	// send null msg to all LPs
-	Broadcast(Lookahead, new NullEA);
+	Broadcast(Lookahead, new NULL_MSG);
 
 	// setting initial message send time
-	for (int i = 0; i < CommunicationSize() - 1; i++) { LastEventTimeSent[i] = Lookahead; }
+	for (int i = 0; i < NUM_PROCESS - 1; i++) { LastEventTimeSent[i] = Lookahead; }
 
 	while (SimulationTime <= T) {
 		// while a incomingQ is empty, check comms and add any new events to incomingQs 
@@ -176,7 +175,7 @@ void RunSimulation(Time T)
 
 		// finding safe time
 		Time safe = TIME_MAX;
-		for (int i = 0; i < CommunicationSize() - 1; i++) {
+		for (int i = 0; i < NUM_PROCESS - 1; i++) {
 			safe = IncomingQ[i].GetEventTime() * (IncomingQ[i].GetEventTime() < safe) + safe * (IncomingQ[i].GetEventTime() >= safe);
 		}
 
@@ -184,7 +183,7 @@ void RunSimulation(Time T)
 		while (InternalQ.GetEventTime() <= safe) {
 			ExecutionSet.AddEvent(InternalQ.GetEventTime(), InternalQ.GetEventAction());
 		}
-		for (int i = 0; i < CommunicationSize() - 1; i++) {
+		for (int i = 0; i < NUM_PROCESS - 1; i++) {
 			while (IncomingQ[i].GetEventTime() <= safe) {
 				ExecutionSet.AddEvent(IncomingQ[i].GetEventTime(), IncomingQ[i].GetEventAction());
 			}
@@ -204,9 +203,9 @@ void RunSimulation(Time T)
 			}
 
 			// sending null msgs
-			for (int i = 0; i < CommunicationSize() - 1; i++) {
+			for (int i = 0; i < NUM_PROCESS - 1; i++) {
 				if (LastEventTimeSent[i] < SimulationTime + Lookahead) {
-					Send((i >= CommunicationRank() ? i + 1 : i), SimulationTime + Lookahead, new NullEA);
+					Send((i >= CommunicationRank() ? i + 1 : i), SimulationTime + Lookahead, new NULL_MSG);
 				}
 			}
 		}
@@ -219,13 +218,13 @@ void InitializeSimulation()
 	CommunicationInitialize();
 
 	// creating history for all LP except for this LP
-	LastEventTimeSent = new Time[CommunicationSize() - 1];
+	LastEventTimeSent = new Time[NUM_PROCESS - 1];
 
 	// creating array of incoming queues for each LP
-	IncomingQ = new EventSet[CommunicationSize() - 1];
+	IncomingQ = new EventSet[NUM_PROCESS - 1];
 
 	// registering null message
-	RegisterEventActionClass(NullEA::_classId, NullEA::New);
+	RegisterEventActionClass(NULL_MSG::_classId, NULL_MSG::New);
 }
 
 void SetLookahead(Time lookahead) { Lookahead = lookahead; }
