@@ -12,20 +12,20 @@ public:
 	virtual const int GetBufferSize() = 0;
 
 	// serializes data into buffer
-	virtual void Serialize(int* dataBuffer) = 0;
+	virtual void Serialize(int* dataBuffer, int& index) = 0;
 
 	// deserializes data from buffer
-	virtual void Deserialize(int* dataBuffer) = 0;
+	virtual void Deserialize(int* dataBuffer, int& index) = 0;
 
 	// returns class Id 
 	virtual int GetClassId() = 0;
 
 	// global class Id 
 	static int GlobalClassId;
-protected:
+
 	// Adds data from variable to buffer (serializes data)
 	template <class T>
-	void AddToBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
+	static void AddToBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
 	{
 		for (int i = 0; i < sizeof(T) / sizeof(int); i++) {
 			dataBuffer[index++] = dataRef[i];
@@ -34,7 +34,7 @@ protected:
 
 	// removes data from buffer and adds to variable (deserialization)
 	template <class T>
-	void TakeFromBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
+	static void TakeFromBuffer(int* dataBuffer, int* dataRef, int& index, T obj)
 	{
 		for (int i = 0; i < sizeof(T) / sizeof(int); i++) {
 			dataRef[i] = dataBuffer[index++];

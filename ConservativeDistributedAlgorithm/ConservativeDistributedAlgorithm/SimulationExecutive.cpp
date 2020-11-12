@@ -25,9 +25,7 @@ public:
 		return _classId;
 	}
 
-	static EventAction* New() {
-		return new NullEA;
-	}
+	static EventAction* New() { return new NullEA; }
 };
 int NullEA::_classId = EventAction::GlobalClassId++;
 
@@ -67,22 +65,30 @@ bool CheckForComm(int& tag, int& source)
 	return(flag == 1);
 }
 
-void Send(int dest, EventAction * ea)
+void Send(int dest, Time& t, EventAction * ea)
 {
-	int bufferSize = ea->GetBufferSize();
+	int bufferSize = ea->GetBufferSize() + sizeof(t)/sizeof(int);
 	int* dataBuffer = new int[bufferSize];
-	ea->Serialize(dataBuffer);
+	int index = 0;
+
+	// serialize time and event
+	EventAction::AddToBuffer(dataBuffer, (int*)&t, index , t);
+	ea->Serialize(dataBuffer, index);
 
 	MPI_Request request;
 	MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, dest, ea->GetClassId(), MPI_COMM_WORLD, &request);
 	delete[] dataBuffer;
+	delete ea;
 }
 
-void Broadcast(EventAction * ea)
+void Broadcast(Time t, EventAction * ea)
 {
-	int bufferSize = ea->GetBufferSize();
+	int bufferSize = ea->GetBufferSize() + sizeof(t) / sizeof(int);
 	int* dataBuffer = new int[bufferSize];
-	ea->Serialize(dataBuffer);
+	int index = 0;
+
+	EventAction::AddToBuffer(dataBuffer, (int*)&t, index, t);
+	ea->Serialize(dataBuffer, index);
 
 	MPI_Request request;
 	for (int i = 0; i < CommunicationSize(); i++) {
@@ -90,6 +96,7 @@ void Broadcast(EventAction * ea)
 			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, i, ea->GetClassId(), MPI_COMM_WORLD, &request);
 		}
 	}
+	delete ea;
 	delete[] dataBuffer;
 }
 
@@ -101,7 +108,16 @@ void Receive(int source, int tag)
 	int * dataBuffer = new int[bufferSize];
 	MPI_Request request;
 	MPI_Irecv(dataBuffer, bufferSize, MPI_INTEGER, source, (tag == -1 ? MPI_ANY_TAG : tag), MPI_COMM_WORLD, &request);
-	ea->Deserialize(dataBuffer);
+
+	// deserialize time and event
+	int index;
+	Time t;
+	EventAction::TakeFromBuffer(dataBuffer, (int*)&t, index, t);
+	ea->Deserialize(dataBuffer, index);
+
+	// add to queue
+	IncomingQ[source].AddEvent(t, ea);
+
 	delete[] dataBuffer;
 }
 
