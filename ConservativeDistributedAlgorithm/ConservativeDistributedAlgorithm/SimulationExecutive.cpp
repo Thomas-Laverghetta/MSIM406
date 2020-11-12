@@ -16,8 +16,8 @@ public:
 	NullEA() {}
 	void Execute() {}
 	const int GetBufferSize() { return 0; }
-	void Serialize(int* dataBuffer) {}
-	void Deserialize(int* dataBuffer) {}
+	void Serialize(int* dataBuffer, int& index) {}
+	void Deserialize(int* dataBuffer, int& index) {}
 
 	static int _classId;
 
@@ -65,7 +65,7 @@ bool CheckForComm(int& tag, int& source)
 	return(flag == 1);
 }
 
-void Send(int dest, Time& t, EventAction * ea)
+void Send(int dest, const Time& t, EventAction * ea)
 {
 	int bufferSize = ea->GetBufferSize() + sizeof(t)/sizeof(int);
 	int* dataBuffer = new int[bufferSize];
@@ -79,6 +79,8 @@ void Send(int dest, Time& t, EventAction * ea)
 	MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, dest, ea->GetClassId(), MPI_COMM_WORLD, &request);
 	delete[] dataBuffer;
 	delete ea;
+
+	LastEventTimeSent[(dest >= CommunicationRank() ? dest - 1 : dest)] = t;
 }
 
 void Broadcast(Time t, EventAction * ea)
@@ -94,6 +96,7 @@ void Broadcast(Time t, EventAction * ea)
 	for (int i = 0; i < CommunicationSize(); i++) {
 		if (i != CommunicationRank()) {
 			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, i, ea->GetClassId(), MPI_COMM_WORLD, &request);
+			LastEventTimeSent[(i >= CommunicationRank() ? i - 1 : i)] = t;
 		}
 	}
 	delete ea;
@@ -103,8 +106,8 @@ void Broadcast(Time t, EventAction * ea)
 void Receive(int source, int tag)
 {
 	// tag is class Id
-	EventAction* ea = EventClassMap[tag]();
-	int bufferSize = ea->GetBufferSize();
+	EventAction* ea = EventClassMap[tag]();	// create new event action using tag == classId 
+	int bufferSize = ea->GetBufferSize() + sizeof(Time) / sizeof(int);
 	int * dataBuffer = new int[bufferSize];
 	MPI_Request request;
 	MPI_Irecv(dataBuffer, bufferSize, MPI_INTEGER, source, (tag == -1 ? MPI_ANY_TAG : tag), MPI_COMM_WORLD, &request);
@@ -146,9 +149,68 @@ void ScheduleEventIn(const Time& deltaT, EventAction* ea, int LP)
 	}
 }
 
+// returns true if any incoming Q is empty
+bool IncomingQueuesEmpty() {
+	int numEmpty = 0;
+	for (int j = 0; j < CommunicationSize() - 1; j++) {
+		numEmpty += IncomingQ[j].isEmpty();
+	}
+	return numEmpty > 0;
+}
+
 void RunSimulation(Time T)
 {
+	// send null msg to all LPs
+	Broadcast(Lookahead, new NullEA);
 
+	// setting initial message send time
+	for (int i = 0; i < CommunicationSize() - 1; i++) { LastEventTimeSent[i] = Lookahead; }
+
+	while (SimulationTime <= T) {
+		// while a incomingQ is empty, check comms and add any new events to incomingQs 
+		while (IncomingQueuesEmpty()) {
+			int source, tag;
+			while (!(CheckForComm(tag, source)));
+			Receive(source, tag);	// will deserialize and add event to queue
+		}
+
+		// finding safe time
+		Time safe = TIME_MAX;
+		for (int i = 0; i < CommunicationSize() - 1; i++) {
+			safe = IncomingQ[i].GetEventTime() * (IncomingQ[i].GetEventTime() < safe) + safe * (IncomingQ[i].GetEventTime() >= safe);
+		}
+
+		// getting all executable events and adding them to execution set
+		while (InternalQ.GetEventTime() <= safe) {
+			ExecutionSet.AddEvent(InternalQ.GetEventTime(), InternalQ.GetEventAction());
+		}
+		for (int i = 0; i < CommunicationSize() - 1; i++) {
+			while (IncomingQ[i].GetEventTime() <= safe) {
+				ExecutionSet.AddEvent(IncomingQ[i].GetEventTime(), IncomingQ[i].GetEventAction());
+			}
+		}
+
+		// executing events
+		while (!ExecutionSet.isEmpty()) {
+			SimulationTime = ExecutionSet.GetEventTime();
+			EventAction * ea = ExecutionSet.GetEventAction();
+			ea->Execute();
+			delete ea;
+		}
+
+		// sending output queues
+		while (outputQ.GetEventTime() <= SimulationTime + Lookahead) {
+			// will serialize and send to LP
+			Send(outputQ.GetLP(), outputQ.GetEventTime(), outputQ.GetEventAction());
+		}
+
+		// sending null msgs
+		for (int i = 0; i < CommunicationSize() - 1; i++) {
+			if (LastEventTimeSent[i] < SimulationTime + Lookahead) {
+				Send((i >= CommunicationRank() ? i + 1 : i), SimulationTime + Lookahead, new NullEA);
+			}
+		}
+	}
 }
 
 void InitializeSimulation()

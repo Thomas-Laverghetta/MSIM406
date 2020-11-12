@@ -1,7 +1,10 @@
 #ifndef SIMULATION_EXEC_H
 #define SIMULATION_EXEC_H
 
+#include <float.h>
+
 typedef double Time;
+Time TIME_MAX = DBL_MAX;
 
 class EventAction {
 public:
@@ -51,7 +54,7 @@ Time GetSimulationTime();
 void ScheduleEventIn(const Time& deltaT, EventAction* ea, int LP);
 
 // Starts the simulation
-void RunSimulation(Time T = -1);
+void RunSimulation(Time T);
 
 // Initializes Simulation
 void InitializeSimulation();

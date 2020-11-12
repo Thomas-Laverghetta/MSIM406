@@ -82,8 +82,8 @@ public:
         return _nodeCounter;
     }
 
-    bool HasEvents() {
-        return _nodeCounter != 0;
+    bool isEmpty() {
+        return _nodeCounter == 0;
     }
 
     // returns event with smallest time 
