@@ -5,7 +5,7 @@
 #include <float.h>
 
 typedef double Time;
-//Time TIME_MAX = ;
+#define TIME_MAX DBL_MAX
 
 
 class EventAction {

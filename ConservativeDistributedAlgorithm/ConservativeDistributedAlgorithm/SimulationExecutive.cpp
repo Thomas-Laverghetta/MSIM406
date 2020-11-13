@@ -184,7 +184,7 @@ void RunSimulation(Time T)
 		}
 		
 		// finding safe time
-		Time safe = DBL_MAX;
+		Time safe = TIME_MAX;
 		for (int i = 0; i < NUM_PROCESS - 1; i++) {
 			safe = IncomingQ[i].GetEventTime() * (IncomingQ[i].GetEventTime() < safe) + safe * (IncomingQ[i].GetEventTime() >= safe);
 		}
