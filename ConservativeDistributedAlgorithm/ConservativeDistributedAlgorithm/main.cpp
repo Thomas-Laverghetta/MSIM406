@@ -1,4 +1,5 @@
 #include "SimulationExecutive.h"
+#include "TestHarness.hpp"
 #include <cstdio>
 
 int main() {

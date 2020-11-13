@@ -1,20 +1,22 @@
 #pragma once
-#include "Communication.h"
-#include <stdio.h>
-#include "mpi.h"
+#include "SimulationExecutive.h"
+#include "Distribution.h"
 
 // Cargo for the plane
-struct Cargo { 
-	unsigned int quantity = 0; 
-	double capacity = 0.0f; 
-	double size = 0.0f; 
+struct Cargo {
+	unsigned int quantity = 0;
+	double capacity = 0.0f;
+	double size = 0.0f;
 };
 
 class Airplane
 {
 public:
-	Airplane(double capacity);
-	Airplane(int source);
+	Airplane(double capacity, Distribution * dist = new Triangular(5.0,6.0,7.0));
+	Airplane() {}
+
+	///
+	void Arrival();
 
 	/// Sends the airplane to the process indicated by rank. 
 	void SendFlight(int rank);
@@ -45,7 +47,7 @@ public:
 
 	/// Prints the plane console
 	void PrintAirplane();
-private:
+
 	// Serialization Methods
 	const int GetBufferSize() {
 		return ((sizeof(_planeId) +
@@ -54,16 +56,17 @@ private:
 			sizeof(_numFlights) +
 			sizeof(_cargo.capacity) +
 			sizeof(_cargo.quantity) +
-			sizeof(_cargo.size)) / 
+			sizeof(_cargo.size)) /
 			sizeof(int));
 	}
-	void Serialize(int* databuffer);
-	void Deserialize(int* databuffer);
+	void Serialize(int* databuffer, int& index);
+	void Deserialize(int* databuffer, int& index);
 
+private:
 	// Identifiers 
 	unsigned int _planeId;
 	unsigned int _processorId;
-	
+
 	unsigned int _numFlights;		// number of flights completed
 	unsigned int _lastFlight;		// last processor
 
@@ -71,5 +74,37 @@ private:
 
 	// Cargo for this plane
 	Cargo _cargo;
+
+	// Time Distributions
+	Distribution * _dist;
 };
 
+class AirplaneArrival : public EventAction {
+public:
+	AirplaneArrival() {}
+	AirplaneArrival(Airplane * plane) { _plane = plane; }
+	void Execute() { 
+		_plane->Arrival();
+	}
+
+	const int GetBufferSize() {
+		return _plane->GetBufferSize();
+	}
+
+	void Serialize(int* dataBuffer, int& index) {
+		_plane->Deserialize(dataBuffer, index);
+	}
+
+	void Deserialize(int* dataBuffer, int& index) { 
+		_plane = new Airplane(0);
+		_plane->Serialize(dataBuffer, index);
+	}
+
+	static int classId;
+	int GetClassId() { return classId; }
+
+	static EventAction* New() { return new AirplaneArrival; }
+private:
+	// save a airplane
+	Airplane* _plane;
+};

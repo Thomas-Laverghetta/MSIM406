@@ -6,8 +6,6 @@
 #include <unordered_map>
 #include <thread>
 
-
-
 using namespace std;
 
 // init global Event action id
@@ -271,6 +269,9 @@ void InitializeSimulation()
 
 	// registering null message
 	RegisterEventActionClass(NULL_MSG::_classId, NULL_MSG::New);
+
+	// random seed
+	srand(PROCESS_RANK * 3);
 }
 
 void SetSimulationLookahead(Time lookahead) { Lookahead = lookahead; }

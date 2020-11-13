@@ -1,4 +1,3 @@
-#pragma once
 #ifndef SIMULATION_EXEC_H
 #define SIMULATION_EXEC_H
 
