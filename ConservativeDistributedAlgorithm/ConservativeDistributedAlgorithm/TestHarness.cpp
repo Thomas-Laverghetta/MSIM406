@@ -6,6 +6,8 @@ using namespace std;
 
 int AirplaneArrival::classId = AirplaneArrival::GlobalClassId++;
 
+unsigned int Airplane::_nextId = 0;
+
 Airplane::Airplane(double capacity, Distribution* dist)
 {
 	_dist = dist;
@@ -13,7 +15,7 @@ Airplane::Airplane(double capacity, Distribution* dist)
 
 	// setting IDs
 	_processorId = CommunicationRank();
-	_planeId = rand() % 1000;
+	_planeId = _nextId++;
 	_lastFlight = _processorId;
 
 	_numFlights = 0;
@@ -21,7 +23,15 @@ Airplane::Airplane(double capacity, Distribution* dist)
 
 void Airplane::Arrival()
 {
-	SendFlight(rand() % CommunicationSize());
+	AddFlight();
+	
+	PrintAirplane();
+	
+	// determing if plane has finished and will be broadcasted
+	if (!MaxFlight()) {
+		AddFlightOrigin();
+		SendFlight(rand() % CommunicationSize());
+	}
 }
 
 void Airplane::SendFlight(int rank)

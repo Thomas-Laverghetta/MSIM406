@@ -77,6 +77,8 @@ private:
 
 	// Time Distributions
 	Distribution * _dist;
+
+	static unsigned int _nextId;
 };
 
 class AirplaneArrival : public EventAction {
