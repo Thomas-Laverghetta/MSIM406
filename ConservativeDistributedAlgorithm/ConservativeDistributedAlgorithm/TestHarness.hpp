@@ -82,7 +82,10 @@ private:
 };
 
 class AirplaneArrival : public EventAction {
+	/// Defining EventAction Unique ID and New
+	/// Only needed for Events getting sent (Event msgs) to other processors
 	UNIQUE_EVENT_ID
+	static EventAction* New() { return new AirplaneArrival; }
 public:
 	AirplaneArrival() {}
 	AirplaneArrival(Airplane * plane) { _plane = plane; }
@@ -102,8 +105,6 @@ public:
 		_plane = new Airplane(0);
 		_plane->Serialize(dataBuffer, index);
 	}
-
-	static EventAction* New() { return new AirplaneArrival; }
 private:
 	// save a airplane
 	Airplane* _plane;

@@ -26,7 +26,8 @@ public:
 	// deserializes data from buffer
 	virtual void Deserialize(int* dataBuffer, int& index) = 0;
 
-	virtual const int GetClassId() = 0;
+	virtual const int GetClassId() {}
+
 	// global class Id 
 	static int GlobalClassId;
 
