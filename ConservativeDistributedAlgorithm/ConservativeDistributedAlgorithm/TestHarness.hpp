@@ -82,6 +82,7 @@ private:
 };
 
 class AirplaneArrival : public EventAction {
+	UNIQUE_EVENT_ID
 public:
 	AirplaneArrival() {}
 	AirplaneArrival(Airplane * plane) { _plane = plane; }
@@ -101,9 +102,6 @@ public:
 		_plane = new Airplane(0);
 		_plane->Serialize(dataBuffer, index);
 	}
-
-	static int classId;
-	int GetClassId() { return classId; }
 
 	static EventAction* New() { return new AirplaneArrival; }
 private:

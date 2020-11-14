@@ -4,8 +4,6 @@
 
 using namespace std;
 
-int AirplaneArrival::classId = AirplaneArrival::GlobalClassId++;
-
 unsigned int Airplane::_nextId = 0;
 
 Airplane::Airplane(double capacity, Distribution* dist)

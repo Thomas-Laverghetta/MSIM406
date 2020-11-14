@@ -2,6 +2,8 @@
 #define SIMULATION_EXEC_H
 
 #include <float.h>
+#include <vector>
+
 
 typedef double Time;
 #define TIME_MAX DBL_MAX
@@ -9,6 +11,9 @@ typedef double Time;
 
 class EventAction {
 public:
+	EventAction() {
+		
+	}
 	// Executes events to change system state
 	virtual void Execute() = 0;
 
@@ -21,9 +26,7 @@ public:
 	// deserializes data from buffer
 	virtual void Deserialize(int* dataBuffer, int& index) = 0;
 
-	// returns class Id 
-	virtual int GetClassId() = 0;
-
+	virtual const int GetClassId() = 0;
 	// global class Id 
 	static int GlobalClassId;
 
@@ -44,7 +47,17 @@ public:
 			dataRef[i] = dataBuffer[index++];
 		}
 	}
+
 };
+
+// Unique Event ID
+/// Each event action will declare this within class arg so that class has unique class ID
+#define UNIQUE_EVENT_ID \
+public: \
+	static const int getUniqueId() {static int id = EventAction::GlobalClassId++;\
+return id;}\
+	const int GetClassId() { return getUniqueId(); };
+
 
 typedef EventAction* (*NewFunctor)();
 

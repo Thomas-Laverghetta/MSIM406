@@ -13,6 +13,7 @@ int EventAction::GlobalClassId = 0;
 
 // Null msg
 class NULL_MSG : public EventAction {
+	UNIQUE_EVENT_ID
 public:
 	NULL_MSG() {}
 	void Execute() {}
@@ -20,15 +21,8 @@ public:
 	void Serialize(int* dataBuffer, int& index) {}
 	void Deserialize(int* dataBuffer, int& index) {}
 
-	static int _classId;
-
-	int GetClassId() {
-		return _classId;
-	}
-
 	static EventAction* New() { return new NULL_MSG; }
 };
-int NULL_MSG::_classId = EventAction::GlobalClassId++;
 
 //-------------SIMULATION EXEC--------------------
 // Simulation Executive private variables:
@@ -166,6 +160,8 @@ bool IncomingQueuesEmpty() {
 
 void RunSimulation(Time T)
 {
+	int tag, source;
+
 	// send null msg to all LPs
 	Broadcast(Lookahead, new NULL_MSG); 
 
@@ -176,7 +172,7 @@ void RunSimulation(Time T)
 	while (LOOP) {
 		// while a incomingQ is empty, check comms and add any new events to incomingQs 
 		while (IncomingQueuesEmpty()) {
-			int source, tag;
+			// wait for new message
 			while (!(CheckForComm(tag, source)));
 			Receive(source, tag);	// will deserialize and add event to queue
 		}
@@ -191,6 +187,7 @@ void RunSimulation(Time T)
 		cout << "Safe : " << safe << endl; fflush(stdout);
 		this_thread::sleep_for(3s);
 #endif
+
 		// getting all executable events and adding them to execution set
 		while (!InternalQ.isEmpty() && InternalQ.GetEventTime() <= safe) {
 			ExecutionSet.AddEvent(InternalQ.GetEventTime(), InternalQ.GetEventAction());
@@ -214,9 +211,15 @@ void RunSimulation(Time T)
 			EventAction * ea = ExecutionSet.GetEventAction();
 			ea->Execute();
 			delete ea;
+			
 
+			// checking for new events between execution
+			if (CheckForComm(tag, source)) { Receive(source, tag); }
+
+#ifdef DEBUG
 			cout << "SimTime : " << SimulationTime << endl; fflush(stdout);
 			this_thread::sleep_for(1s);
+#endif
 
 			// sending output queues
 			while (!outputQ.isEmpty() && outputQ.GetEventTime() <= SimulationTime + Lookahead) {
@@ -268,7 +271,7 @@ void InitializeSimulation()
 	IncomingQ = new EventSet[NUM_PROCESS - 1];
 
 	// registering null message
-	RegisterEventActionClass(NULL_MSG::_classId, NULL_MSG::New);
+	RegisterEventActionClass(NULL_MSG::getUniqueId(), NULL_MSG::New);
 
 	// random seed
 	srand(PROCESS_RANK * 3);
