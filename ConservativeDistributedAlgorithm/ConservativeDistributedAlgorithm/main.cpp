@@ -2,6 +2,8 @@
 #include "TestHarness.hpp"
 #include <cstdio>
 
+using namespace SimExec;
+
 int main() {
 	InitializeSimulation();
 

@@ -13,270 +13,275 @@ int EventAction::GlobalClassId = 0;
 
 // Null msg
 class NULL_MSG : public EventAction {
+	/// Defining EventAction Unique ID and New
+	/// Only needed for Events getting sent (Event msgs) to other processors
 	UNIQUE_EVENT_ID
+		static EventAction* New() { return new NULL_MSG; }
 public:
 	NULL_MSG() {}
 	void Execute() {}
 	const int GetBufferSize() { return 0; }
 	void Serialize(int* dataBuffer, int& index) {}
 	void Deserialize(int* dataBuffer, int& index) {}
-
-	static EventAction* New() { return new NULL_MSG; }
 };
 
-//-------------SIMULATION EXEC--------------------
-// Simulation Executive private variables:
-Time SimulationTime = 0;		// simulation time
-Time Lookahead = 0;				// simulation lookahead
-Time* LastEventTimeSent;		// times of last sent times
-unordered_map<unsigned int, NewFunctor> EventClassMap; // mapping of class id to new methods
-EventSet InternalQ;				// this process internal Q
-EventSet* IncomingQ;			// incoming event queues for all LPs
-EventSet ExecutionSet;			// Set for executing events
-OutEventSet outputQ;			// events to be sent out
+namespace SimExec {
+	//-------------SIMULATION EXEC--------------------
+	// Simulation Executive private variables:
+	Time SimulationTime = 0;		// simulation time
+	Time Lookahead = 0;				// simulation lookahead
+	Time* LastEventTimeSent;		// times of last sent times
+	unordered_map<unsigned int, NewFunctor> EventClassMap; // mapping of class id to new methods
+	EventSet InternalQ;				// this process internal Q
+	EventSet* IncomingQ;			// incoming event queues for all LPs
+	EventSet ExecutionSet;			// Set for executing events
+	OutEventSet outputQ;			// events to be sent out
 
-//----------------Comm-------------------
-int PROCESS_RANK = -1;
-int NUM_PROCESS = -1;
+	//----------------Comm-------------------
+	int PROCESS_RANK = -1;
+	int NUM_PROCESS = -1;
 
-void CommunicationInitialize()
-{
-	int* argc = 0;
-	char*** argv = 0;
-	MPI_Init(NULL, NULL);
-	MPI_Comm_rank(MPI_COMM_WORLD, &PROCESS_RANK);
-	MPI_Comm_size(MPI_COMM_WORLD, &NUM_PROCESS);
-}
-
-void CommunicationFinalize()
-{
-	cout << PROCESS_RANK << " in finalize" << endl;
-	MPI_Finalize();
-	cout << PROCESS_RANK << " done finalize" << endl;
-}
-
-int CommunicationRank() { return PROCESS_RANK; }
-
-int CommunicationSize(){ return NUM_PROCESS; }
-
-bool CheckForComm(int& tag, int& source)
-{
-	MPI_Status status;
-	int flag;
-	MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
-	if (flag) {
-		tag = status.MPI_TAG;
-		source = status.MPI_SOURCE;
+	void CommunicationInitialize()
+	{
+		int* argc = 0;
+		char*** argv = 0;
+		MPI_Init(NULL, NULL);
+		MPI_Comm_rank(MPI_COMM_WORLD, &PROCESS_RANK);
+		MPI_Comm_size(MPI_COMM_WORLD, &NUM_PROCESS);
 	}
-	return(flag == 1);
-}
 
-void Send(int dest, const Time& t, EventAction * ea)
-{
-	int bufferSize = ea->GetBufferSize() + sizeof(t)/sizeof(int);
-	int* dataBuffer = new int[bufferSize];
-	int index = 0;
+	void CommunicationFinalize()
+	{
+		cout << PROCESS_RANK << " in finalize" << endl;
+		MPI_Finalize();
+		cout << PROCESS_RANK << " done finalize" << endl;
+	}
 
-	// serialize time and event
-	EventAction::AddToBuffer(dataBuffer, (int*)&t, index , t);
-	ea->Serialize(dataBuffer, index);
+	int CommunicationRank() { return PROCESS_RANK; }
 
-	MPI_Request request;
-	MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, dest, ea->GetClassId(), MPI_COMM_WORLD, &request);
-	delete[] dataBuffer;
-	delete ea;
+	int CommunicationSize() { return NUM_PROCESS; }
 
-	LastEventTimeSent[(dest >= PROCESS_RANK ? dest - 1 : dest)] = t;
-}
-
-void Broadcast(Time t, EventAction * ea)
-{
-	int bufferSize = ea->GetBufferSize() + sizeof(t) / sizeof(int);
-	int* dataBuffer = new int[bufferSize];
-	int index = 0;
-
-	EventAction::AddToBuffer(dataBuffer, (int*)&t, index, t);
-	ea->Serialize(dataBuffer, index);
-
-	MPI_Request request;
-	for (int i = 0; i < CommunicationSize(); i++) {
-		if (i != CommunicationRank()) {
-			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, i, ea->GetClassId(), MPI_COMM_WORLD, &request);
-			LastEventTimeSent[(i >= CommunicationRank() ? i - 1 : i)] = t;
+	bool CheckForComm(int& tag, int& source)
+	{
+		MPI_Status status;
+		int flag;
+		MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
+		if (flag) {
+			tag = status.MPI_TAG;
+			source = status.MPI_SOURCE;
 		}
+		return(flag == 1);
 	}
-	delete ea;
-	delete[] dataBuffer;
-}
 
-void Receive(int source, int tag)
-{
-	// tag is class Id
-	EventAction* ea = EventClassMap[tag]();	// create new event action using tag == classId 
-	int bufferSize = ea->GetBufferSize() + sizeof(Time) / sizeof(int);
-	int * dataBuffer = new int[bufferSize];
-	MPI_Request request;
+	void Send(int dest, const Time& t, EventAction* ea)
+	{
+		int bufferSize = ea->GetBufferSize() + sizeof(t) / sizeof(int);
+		int* dataBuffer = new int[bufferSize];
+		int index = 0;
 
-	MPI_Irecv(dataBuffer, bufferSize, MPI_INTEGER, source, tag, MPI_COMM_WORLD, &request);
+		// serialize time and event
+		EventAction::AddToBuffer(dataBuffer, (int*)&t, index, t);
+		ea->Serialize(dataBuffer, index);
 
-	// deserialize time and event
-	int index = 0;
-	Time t = 0;
-	EventAction::TakeFromBuffer(dataBuffer, (int*)&t, index, t);
-	ea->Deserialize(dataBuffer, index);
+		MPI_Request request;
+		MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, dest, ea->GetClassId(), MPI_COMM_WORLD, &request);
+		delete[] dataBuffer;
+		delete ea;
 
-	// add to queue
-	IncomingQ[(source >= CommunicationRank() ? source - 1 : source)].AddEvent(t, ea);
-
-	delete[] dataBuffer;
-
-#ifdef DEBUG
-	cout << "MSG recv d : " << source << " : " << t << endl; fflush(stdout);
-	this_thread::sleep_for(2s);
-#endif
-}
-
-// Simulation Executive public Methods:
-Time GetSimulationTime(){ return SimulationTime; }
-
-void ScheduleEventIn(const Time& deltaT, EventAction* ea, int LP)
-{
-	if (LP == CommunicationRank()) {
-		InternalQ.AddEvent(deltaT + SimulationTime, ea);
+		LastEventTimeSent[(dest >= PROCESS_RANK ? dest - 1 : dest)] = t;
 	}
-	else {
-		outputQ.AddEvent(deltaT + SimulationTime, ea, LP);
-	}
-}
 
-// returns true if any incoming Q is empty
-bool IncomingQueuesEmpty() {
-	int numEmpty = 0;
-	for (int j = 0; j < NUM_PROCESS - 1; j++) {
-		numEmpty += IncomingQ[j].isEmpty();
-	}
-	return numEmpty > 0;
-}
+	void Broadcast(Time t, EventAction* ea)
+	{
+		int bufferSize = ea->GetBufferSize() + sizeof(t) / sizeof(int);
+		int* dataBuffer = new int[bufferSize];
+		int index = 0;
 
-void RunSimulation(Time T)
-{
-	int tag, source;
+		EventAction::AddToBuffer(dataBuffer, (int*)&t, index, t);
+		ea->Serialize(dataBuffer, index);
 
-	// send null msg to all LPs
-	Broadcast(Lookahead, new NULL_MSG); 
-
-	// setting initial message send time
-	for (int i = 0; i < NUM_PROCESS - 1; i++) { LastEventTimeSent[i] = Lookahead; }
-
-	bool LOOP = true;
-	while (LOOP) {
-		// while a incomingQ is empty, check comms and add any new events to incomingQs 
-		while (IncomingQueuesEmpty()) {
-			// wait for new message
-			while (!(CheckForComm(tag, source)));
-			Receive(source, tag);	// will deserialize and add event to queue
-		}
-		
-		// finding safe time
-		Time safe = TIME_MAX;
-		for (int i = 0; i < NUM_PROCESS - 1; i++) {
-			safe = IncomingQ[i].GetEventTime() * (IncomingQ[i].GetEventTime() < safe) + safe * (IncomingQ[i].GetEventTime() >= safe);
-		}
-
-#ifdef DEBUG
-		cout << "Safe : " << safe << endl; fflush(stdout);
-		this_thread::sleep_for(3s);
-#endif
-
-		// getting all executable events and adding them to execution set
-		while (!InternalQ.isEmpty() && InternalQ.GetEventTime() <= safe) {
-			ExecutionSet.AddEvent(InternalQ.GetEventTime(), InternalQ.GetEventAction());
-		}
-		for (int i = 0; i < NUM_PROCESS - 1; i++) {
-			while (!IncomingQ[i].isEmpty() && IncomingQ[i].GetEventTime() <= safe) {
-				ExecutionSet.AddEvent(IncomingQ[i].GetEventTime(), IncomingQ[i].GetEventAction());
+		MPI_Request request;
+		for (int i = 0; i < CommunicationSize(); i++) {
+			if (i != CommunicationRank()) {
+				MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, i, ea->GetClassId(), MPI_COMM_WORLD, &request);
+				LastEventTimeSent[(i >= CommunicationRank() ? i - 1 : i)] = t;
 			}
 		}
+		delete ea;
+		delete[] dataBuffer;
+	}
 
-		// executing events
-		while (!ExecutionSet.isEmpty()) {
-			SimulationTime = ExecutionSet.GetEventTime();
+	void Receive(int source, int tag)
+	{
+		// tag is class Id
+		EventAction* ea = EventClassMap[tag]();	// create new event action using tag == classId 
+		int bufferSize = ea->GetBufferSize() + sizeof(Time) / sizeof(int);
+		int* dataBuffer = new int[bufferSize];
+		MPI_Request request;
 
-			// if simulation time is greater than termination time then terminate
-			if (SimulationTime > T) {
-				LOOP = false;		// signals while loop to stop
-				break;
-			}
+		MPI_Irecv(dataBuffer, bufferSize, MPI_INTEGER, source, tag, MPI_COMM_WORLD, &request);
 
-			EventAction * ea = ExecutionSet.GetEventAction();
-			ea->Execute();
-			delete ea;
-			
+		// deserialize time and event
+		int index = 0;
+		Time t = 0;
+		EventAction::TakeFromBuffer(dataBuffer, (int*)&t, index, t);
+		ea->Deserialize(dataBuffer, index);
 
-			// checking for new events between execution
-			if (CheckForComm(tag, source)) { Receive(source, tag); }
+		// add to queue
+		IncomingQ[(source >= CommunicationRank() ? source - 1 : source)].AddEvent(t, ea);
+
+		delete[] dataBuffer;
 
 #ifdef DEBUG
-			cout << "SimTime : " << SimulationTime << endl; fflush(stdout);
-			this_thread::sleep_for(1s);
+		cout << "MSG recv d : " << source << " : " << t << endl; fflush(stdout);
+		this_thread::sleep_for(2s);
 #endif
+	}
 
-			// sending output queues
-			while (!outputQ.isEmpty() && outputQ.GetEventTime() <= SimulationTime + Lookahead) {
-				// will serialize and send to LP
-				Send(outputQ.GetLP(), outputQ.GetEventTime(), outputQ.GetEventAction());
+	// Simulation Executive public Methods:
+	Time GetSimulationTime() { return SimulationTime; }
+
+	void ScheduleEventIn(const Time& deltaT, EventAction* ea, int LP)
+	{
+		if (LP == CommunicationRank()) {
+			InternalQ.AddEvent(deltaT + SimulationTime, ea);
+		}
+		else {
+			outputQ.AddEvent(deltaT + SimulationTime, ea, LP);
+		}
+	}
+
+	// returns true if any incoming Q is empty
+	bool IncomingQueuesEmpty() {
+		int numEmpty = 0;
+		for (int j = 0; j < NUM_PROCESS - 1; j++) {
+			numEmpty += IncomingQ[j].isEmpty();
+		}
+		return numEmpty > 0;
+	}
+
+	void RunSimulation(Time T)
+	{
+		// recieving variables
+		int tag, source;
+
+		// send null msg to all LPs
+		Broadcast(Lookahead, new NULL_MSG);
+
+		// setting initial message send time
+		for (int i = 0; i < NUM_PROCESS - 1; i++) { LastEventTimeSent[i] = Lookahead; }
+
+		bool LOOP = true;
+		while (LOOP) {
+			// while a incomingQ is empty, check comms and add any new events to incomingQs 
+			while (IncomingQueuesEmpty()) {
+				// wait for new message
+				while (!(CheckForComm(tag, source)));
+				Receive(source, tag);	// will deserialize and add event to queue
 			}
 
-			// sending null msgs
+			// finding safe time
+			Time safe = TIME_MAX;
 			for (int i = 0; i < NUM_PROCESS - 1; i++) {
-				if (LastEventTimeSent[i] < SimulationTime + Lookahead) {
-					Send((i >= CommunicationRank() ? i + 1 : i), SimulationTime + Lookahead, new NULL_MSG);
+				if (IncomingQ[i].GetEventTime() < safe) safe = IncomingQ[i].GetEventTime();
+			}
+
+#ifdef DEBUG
+			cout << "Safe : " << safe << endl; fflush(stdout);
+			this_thread::sleep_for(3s);
+#endif
+
+			// getting all executable events and adding them to execution set
+			while (!InternalQ.isEmpty() && InternalQ.GetEventTime() <= safe) {
+				ExecutionSet.AddEvent(InternalQ.GetEventTime(), InternalQ.GetEventAction());
+			}
+			for (int i = 0; i < NUM_PROCESS - 1; i++) {
+				while (!IncomingQ[i].isEmpty() && IncomingQ[i].GetEventTime() <= safe) {
+					ExecutionSet.AddEvent(IncomingQ[i].GetEventTime(), IncomingQ[i].GetEventAction());
 				}
 			}
+
+			// executing events
+			while (!ExecutionSet.isEmpty()) {
+				SimulationTime = ExecutionSet.GetEventTime();
+
+				// if simulation time is greater than termination time then terminate
+				if (SimulationTime > T) {
+					LOOP = false;		// signals while loop to stop
+					break;
+				}
+
+				// get and execute event action
+				EventAction* ea = ExecutionSet.GetEventAction();
+				ea->Execute();
+				delete ea;
+
 #ifdef DEBUG
-			cout << " Sent Null msgs "<< endl; fflush(stdout);
-			this_thread::sleep_for(2s);
+				cout << "SimTime : " << SimulationTime << endl; fflush(stdout);
+				this_thread::sleep_for(1s);
 #endif
-		}
+
+				// sending output queues
+				while (!outputQ.isEmpty() && outputQ.GetEventTime() <= SimulationTime + Lookahead) {
+					// will serialize and send to LP
+					Send(outputQ.GetLP(), outputQ.GetEventTime(), outputQ.GetEventAction());
+				}
+
+				// sending null msgs
+				for (int i = 0; i < NUM_PROCESS - 1; i++) {
+					if (LastEventTimeSent[i] < SimulationTime + Lookahead) {
+						Send((i >= CommunicationRank() ? i + 1 : i), SimulationTime + Lookahead, new NULL_MSG);
+					}
+				}
+
+				// checking for new events between execution
+				if (CheckForComm(tag, source)) { Receive(source, tag); }
+
 #ifdef DEBUG
-		cout << "NEXT LOOP" << endl; fflush(stdout);
-		this_thread::sleep_for(2s);
+				cout << " Sent Null msgs " << endl; fflush(stdout);
+				this_thread::sleep_for(2s);
+#endif
+			}
+#ifdef DEBUG
+			cout << "NEXT LOOP" << endl; fflush(stdout);
+			this_thread::sleep_for(2s);
 #endif 		
+		}
+		// finalizing simulation
+		CommunicationFinalize();
+
+		// mem management
+		delete[] IncomingQ;
+		delete[] LastEventTimeSent;
+
+		// destoying sets
+		InternalQ.~EventSet();
+		ExecutionSet.~EventSet();
+		outputQ.~OutEventSet();
+
+		// resetting simulation variables
+		SimulationTime = 0;
 	}
-	// finalizing simulation
-	CommunicationFinalize();
 
-	// mem management
-	delete[] IncomingQ;
-	delete[] LastEventTimeSent;
+	void InitializeSimulation()
+	{
+		// initializing communication
+		CommunicationInitialize();
 
-	// destoying sets
-	InternalQ.~EventSet();
-	ExecutionSet.~EventSet();
-	outputQ.~OutEventSet();
+		// creating history for all LP except for this LP
+		LastEventTimeSent = new Time[NUM_PROCESS - 1];
 
-	// resetting simulation variables
-	SimulationTime = 0;
+		// creating array of incoming queues for each LP
+		IncomingQ = new EventSet[NUM_PROCESS - 1];
+
+		// registering null message
+		RegisterEventActionClass(NULL_MSG::getUniqueId(), NULL_MSG::New);
+
+		// random seed
+		srand(PROCESS_RANK * 3);
+	}
+
+	void SetSimulationLookahead(Time lookahead) { Lookahead = lookahead; }
+
+	void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor) { EventClassMap[classId] = newFunctor; }
 }
-
-void InitializeSimulation()
-{
-	// initializing communication
-	CommunicationInitialize();
-
-	// creating history for all LP except for this LP
-	LastEventTimeSent = new Time[NUM_PROCESS - 1];
-
-	// creating array of incoming queues for each LP
-	IncomingQ = new EventSet[NUM_PROCESS - 1];
-
-	// registering null message
-	RegisterEventActionClass(NULL_MSG::getUniqueId(), NULL_MSG::New);
-
-	// random seed
-	srand(PROCESS_RANK * 3);
-}
-
-void SetSimulationLookahead(Time lookahead) { Lookahead = lookahead; }
-
-void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor) { EventClassMap[classId] = newFunctor; }

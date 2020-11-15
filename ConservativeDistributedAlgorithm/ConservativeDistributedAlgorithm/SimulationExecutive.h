@@ -26,7 +26,7 @@ public:
 	// deserializes data from buffer
 	virtual void Deserialize(int* dataBuffer, int& index) = 0;
 
-	virtual const int GetClassId() {}
+	virtual const int GetClassId() { return INT_MIN; }
 
 	// global class Id 
 	static int GlobalClassId;
@@ -59,32 +59,33 @@ public: \
 return id;}\
 	const int GetClassId() { return getUniqueId(); };
 
+namespace SimExec {
+	typedef EventAction* (*NewFunctor)();
 
-typedef EventAction* (*NewFunctor)();
+	// returns current simulation time
+	Time GetSimulationTime();
 
-// returns current simulation time
-Time GetSimulationTime();
+	// schedules event in future
+	void ScheduleEventIn(const Time& deltaT, EventAction* ea, int LP);
 
-// schedules event in future
-void ScheduleEventIn(const Time& deltaT, EventAction* ea, int LP);
+	// Starts the simulation
+	void RunSimulation(Time T);
 
-// Starts the simulation
-void RunSimulation(Time T);
+	// Initializes Simulation
+	void InitializeSimulation();
 
-// Initializes Simulation
-void InitializeSimulation();
+	// Sets system wide lookahead
+	void SetSimulationLookahead(Time lookahead);
 
-// Sets system wide lookahead
-void SetSimulationLookahead(Time lookahead);
+	// Register EA class
+	void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor);
 
-// Register EA class
-void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor);
+	// returns process id 
+	int CommunicationRank();
 
-// returns process id 
-int CommunicationRank();
-
-// Returns number of processes
-int CommunicationSize();
+	// Returns number of processes
+	int CommunicationSize();
+}
 #endif // !SIMULATION_EXEC_H
 
 
