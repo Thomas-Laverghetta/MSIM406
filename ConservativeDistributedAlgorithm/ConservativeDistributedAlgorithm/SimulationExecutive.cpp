@@ -8,7 +8,7 @@
 
 using namespace std;
 
-#define DEBUG
+//#define DEBUG
 
 // init global Event action id
 int EventAction::GlobalClassId = 0;
@@ -90,7 +90,7 @@ void Send(int dest, const Time& t, EventAction* ea)
 
 	MPI_Request request;
 
-	MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, dest, ea->GetClassId(), MPI_COMM_WORLD, &request);
+	MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, dest, ea->GetEventClassId(), MPI_COMM_WORLD, &request);
 	delete[] dataBuffer;
 	delete ea;
 
@@ -109,7 +109,7 @@ void Broadcast(Time t, EventAction* ea)
 	MPI_Request request;
 	for (int i = 0; i < CommunicationSize(); i++) {
 		if (i != CommunicationRank()) {
-			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, i, ea->GetClassId(), MPI_COMM_WORLD, &request);
+			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, i, ea->GetEventClassId(), MPI_COMM_WORLD, &request);
 			LastEventTimeSent[(i >= CommunicationRank() ? i - 1 : i)] = t;
 		}
 	}

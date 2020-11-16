@@ -4,17 +4,17 @@
 #include <float.h>
 #include <vector>
 
-
+// defining time
 typedef double Time;
 #define TIME_MAX DBL_MAX
 
 
+// defining event action
 class EventAction {
 public:
-	EventAction() {
-		
-	}
-	// Executes events to change system state
+	EventAction() {}
+
+	// Executes event to change system state
 	virtual void Execute() = 0;
 
 	// Gets buffer size for data to serialize
@@ -26,10 +26,8 @@ public:
 	// deserializes data from buffer
 	virtual void Deserialize(int* dataBuffer, int& index) = 0;
 
-	virtual const int GetClassId() { return INT_MIN; }
-
-	// global class Id 
-	static int GlobalClassId;
+	// get the event class Id
+	virtual const int GetEventClassId() { return INT_MIN; }
 
 	// Adds data from variable to buffer (serializes data)
 	template <class T>
@@ -55,7 +53,7 @@ public:
 #define UNIQUE_EVENT_ID(ID) \
 public: \
 	static const int getUniqueId() {return ID;}\
-	const int GetClassId() { return getUniqueId(); };
+	const int GetEventClassId() { return getUniqueId(); };
 
 
 typedef EventAction* (*NewFunctor)();

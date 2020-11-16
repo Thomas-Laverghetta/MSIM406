@@ -7,25 +7,35 @@ class TestEA : public EventAction {
 	/// Defining EventAction Unique ID and New
 	/// Only needed for Events getting sent (Event msgs) to other processors
 	UNIQUE_EVENT_ID(2)
-		static EventAction* New() { return new TestEA; }
+	static EventAction* New() { return new TestEA; }
 public:
 	TestEA() {
 		_dist = new Triangular(5, 7, 8);
 	}
+	TestEA(int id) {
+		_dist = new Triangular(5, 7, 8);
+		_ID = id;
+	}
+
 	void Execute() {
-		printf("\tR EVENT EXEC CURR=%i @ %f\n", CommunicationRank(), GetSimulationTime()); fflush(stdout);
+		printf("\tEVENT %i EXEC CURR=%i | TIME=%f\n", _ID, CommunicationRank(), GetSimulationTime()); fflush(stdout);
 
 		Time nextTime = _dist->GetRV();
 		int nextProcess = rand() % CommunicationSize();
 
-		printf("\tSCH EVENT CURR=%i TO %i @ %f\n",CommunicationRank(), nextProcess, nextTime); fflush(stdout);
-		ScheduleEventIn(nextTime, new TestEA, nextProcess);
+		printf("SCH_EVENT %i CURR=%i->PROC=%i | SCH_TIME=%f\n",_ID, CommunicationRank(), nextProcess, nextTime + GetSimulationTime()); fflush(stdout);
+		ScheduleEventIn(nextTime, new TestEA(_ID), nextProcess);
 	}
-	const int GetBufferSize() { return 0; }
-	void Serialize(int* dataBuffer, int& index) {}
-	void Deserialize(int* dataBuffer, int& index) {}
+	const int GetBufferSize() { return sizeof(_ID)/sizeof(int); }
+	void Serialize(int* dataBuffer, int& index) {
+		EventAction::AddToBuffer(dataBuffer, (int*)&_ID, index, _ID);
+	}
+	void Deserialize(int* dataBuffer, int& index) {
+		EventAction::TakeFromBuffer(dataBuffer, (int*)&_ID, index, _ID);
+	}
 private:
 	Distribution* _dist;
+	int _ID;
 };
 
 void Test1() {
@@ -33,16 +43,17 @@ void Test1() {
 	InitializeSimulation();
 	SetSimulationLookahead(5);
 
-	// registering airplane
+	// registering event with sim exec
 	RegisterEventActionClass(TestEA::getUniqueId(), TestEA::New);
 	
 
-	Time nextTime = 6;
-	int nextProcess = rand() % CommunicationSize();
-
-	printf("\tSCH EVENT CURR=%i TO %i @ %f\n", CommunicationRank(), nextProcess, nextTime); fflush(stdout);
-	ScheduleEventIn(nextTime, new TestEA, nextProcess);
-
+	for (int i = 0; i < 2; i++) {
+		Time nextTime = Triangular(5,7,9).GetRV();
+		int nextProcess = rand() % CommunicationSize();
+		int _ID = rand();
+		printf("SCH_EVENT %i CURR=%i->PROC=%i | SCH_TIME=%f\n", _ID, CommunicationRank(), nextProcess, nextTime + GetSimulationTime()); fflush(stdout);
+		ScheduleEventIn(nextTime, new TestEA(_ID), nextProcess);
+	}
 	RunSimulation(15);
 }
 #endif // !TEST_HARNESS_H
