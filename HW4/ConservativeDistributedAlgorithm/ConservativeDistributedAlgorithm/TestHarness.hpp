@@ -42,13 +42,21 @@ private:
 	int _origin;
 };
 
+/// Termination Test.
+/// Tests if simulation will terminate before or at 15 with just null msgs in system
 void Test1() {
+	InitializeSimulation();
+	SetSimulationLookahead(5);
+	RunSimulation(15);
+}
 
+/// Positive event test 
+void Test2() {
 	InitializeSimulation();
 	SetSimulationLookahead(5);
 
 	// registering event with sim exec
-	RegisterEventActionClass(TestEA::getUniqueId(), TestEA::New);
+	RegisterEventActionClass(TestEA::_EventClassID, TestEA::New);
 	
 
 	for (int i = 0; i < 2; i++) {

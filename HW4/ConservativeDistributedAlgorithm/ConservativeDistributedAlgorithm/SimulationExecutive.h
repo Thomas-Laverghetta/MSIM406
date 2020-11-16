@@ -52,8 +52,8 @@ public:
 /// Each event action will declare this within class arg so that class has unique class ID
 #define UNIQUE_EVENT_ID(ID) \
 public: \
-	static const int getUniqueId() {return ID;}\
-	const int GetEventClassId() { return getUniqueId(); };
+	static const int _EventClassID =  ID;\
+	const int GetEventClassId() { return _EventClassID; };
 
 
 typedef EventAction* (*NewFunctor)();

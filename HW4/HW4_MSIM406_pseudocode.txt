@@ -1,0 +1,168 @@
+Pseudocode For Distributed HW4
+
+CLASS DEFINITIONS
+
+// specifies actions to take on simulation state
+class EventAction:
+public:
+	virtual Execute() = 0 			<-COMMAND PATTERN. application specific. will be used within sim exec
+	virtual Serialize(outBuffer) = 0   	<-serialization method. application specific. will be used within sim exec when sending events to other processors
+	virtual Deserialize(inBuffer) = 0	<-deserialization method. application specific. will be used within sim exec when recving events from other processors
+	virtual int GetBufferSize() = 0		<-get buffer size method. application specific. will be used to determine the size of data buffer for send/recv
+	virtual int GetClassId() {return MAX_INT } <-Any EA app dev needs to send to another process will have static class ID they need to implement and this method will return ID \
+						... app dev will also have to implement static new method to return a new EA for EA getting sent to other LPs \
+						... default, it will return max int which will cause error (indicating to dev that event has not been assigned static class ID) 
+END EventAction
+
+For EAs getting sent to other LPs, I have designed a c++ macro that encapsulates class ID requirement. The macro will take a unique ID and assign it to a static class ID.
+The macro will be placed in children EA classes
+#define UNIQUE_EVENT_ID(id) \
+public: \
+	static const int EventClassID = id \
+	virtual int GetClassId() { return EventClassID }
+END MACRO 
+
+// NullEventActions
+class NULL_MSG:
+	UNIQUE_EVENT_ID(0)
+	Execute() {void}			<-does nothing to affect system state
+	Serialize(outBuffer){} 			<-does not serialize anything
+	Derserialize(inBuffer){}		<-does not deserialize anything
+	int GetBufferSize() {return 0} 		<-buffer size is zero since it is not serializing/deserializing anything
+	static EA * New() { return new NullEA }
+END NULL_MSG
+
+class SendSet:
+	list of dest (LP), EA, and T to send
+END SendSet
+
+// simulation executive class (can be static or singleton implementation)
+class Sim Exec
+private:
+	SendSet outputQ 	<-queue for outputing to other processors. Will send once Lookahead state it is OK
+	Time LastEventTimeSent[]<-history of last event sent time to each processor to determine if to send Null msg
+	eventSet incomingQ[]	<-queue for incoming from other processors. Will process events when it has been determined they are safe
+	eventSet internalQ	<-queue for internal events
+
+	eventSet execSet	<-execution has all safe events to execute
+	
+	Time SimTime 		<-Simulation Time
+	Time L			<-Lookahead for simulation	
+	
+	map<class ID, functor New> EventMap	<-map for mapping event new method to event class ID
+
+	Send(dest, Time, EA)		<-sends outBuff with tag to dest
+	Recieve(source, tag)		<-will return in buffer to deserial object
+	InitComm()			<-initializes communication
+	CheckForComm(tag, source)	<-checks for communications
+	CommFinalize()			<-finalize/clean comms
+public:
+	Time GetSimTime()		<-returns the current simulation time
+	schIn(Time, EA, LP)		<-sch in method. Takes parameters time, event-action, and process
+	RunSim(Time)			<-starts simulation. Takes simulation time (when to terminate sim)
+	InitSim()			<-Initializes simulation parameters and communication
+	SetLookahead(L)			<-application sets lookahead
+	RegisterEA(functor New, class Id) <-registering EA classes with sim exec so sim exec can deserialize incoming events	
+
+	int GetCommRank()		<-returns communication ranking for this processor
+	int GetCommSize()		<-returns number of processors in system
+END SIM EXEC
+
+
+METHOD DEFINITIONS FOR SIM EXEC
+
+InitSim():
+	initialize communications: InitComm()
+	SimTime = 0
+	L = 0
+	allocate LastEventTimeSent to number of processors - 1
+	allocate incomingQ to number of processors - 1
+END InitSim
+
+Time GetSimTime():
+	return SimTime 
+END GetSimTime
+
+schIn(T, EA, LP):
+	if LP is not this LP:
+		Add EA, T, and LP to outputQ
+	else:
+		add EA to event set
+END schIn
+
+RunSim(T):
+	// sending any events with time <= L
+	while outputQ not empty AND outputQ smallest event time <= L:
+		Get EA, T, and LP from outputQ
+		Send EA to LP with T
+	
+	// send null msgs
+	foreach processor rank i:
+		if LastEventTimeSent[i] != L:
+			Send NULL msg to i with timestamp L
+
+	while LOOP == true:
+		while all incomingQ are empty:
+			wait for msgs
+			Receive(msg)
+		
+		// finding safe event time
+		create safe and set to max time
+		foreach Q in incomingQ:
+			if Q.getMaxTime() < safe:
+				safe = Q.getMaxTime()
+		
+		// filling execution queue with safe events from all queues
+		foreach Q in incomingQ and internalQ		
+			while Q.GetTime() <= safe:
+				Add Q.GetEvent() to execSet
+		
+		// executing events
+		while execSet not empty:
+			SimTime = execSet.GetTime()
+			if SimTime > T: <-has sim-time past termination time
+				kill simulation loop: LOOP = false
+				break while execSet
+			
+			// execute event
+			execSet.GetEvent()->Execute()
+			
+			// checking if  
+			while outputQ not empty AND outputQ smallest event time <= L + SimTime:
+				Get EA, T, and LP from outputQ
+				Send EA to LP with T
+		
+			foreach last in LastEventTimeSent:
+				if last < SimTime + L:
+					Send NULL msg to last's index with timestamp L + SimTime
+			
+			check for msgs (DO NOT WAIT FOR MSGS)
+
+	destruct all simulation variables and finalize comms
+END RunSim
+
+RegisterEA (functor New, class Id):
+	EventMap[Id] = New
+END RegisterEA 
+
+Send(dest, Time, EA):
+	Serialize Time then EA
+	
+	Send serialized data to dest with Tag = EA class ID
+
+	set LastEventTimeSent[dest] to Time 		
+END Send
+
+Receive(source, tag):
+	allocate new EA using map[tag] (tag is class ID)
+	deserialize Time then EA
+	Add EA to IncomingQ[source]
+END Recieve
+
+
+
+
+
+
+		
+	

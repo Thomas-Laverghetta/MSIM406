@@ -3,9 +3,7 @@
 
 std::default_random_engine Distribution::generator;
 
-Distribution::Distribution() {
-	generator = std::default_random_engine(CommunicationRank() * 10);
-}
+Distribution::Distribution() {}
 
 Exponential::Exponential(double mean) : Distribution()
 {

@@ -8,6 +8,9 @@ class Distribution
 public:
 	Distribution();
 	virtual double GetRV() = 0;
+	static void SetSeed(unsigned int seed) {
+		generator = std::default_random_engine(seed);
+	}
 protected:
 	static std::default_random_engine generator;
 };

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <thread>
-#include <random>
+#include "Distribution.h"
 
 using namespace std;
 
@@ -95,26 +95,6 @@ void Send(int dest, const Time& t, EventAction* ea)
 	LastEventTimeSent[(dest >= PROCESS_RANK ? dest - 1 : dest)] = t;
 }
 
-void Broadcast(Time t, EventAction* ea)
-{
-	int bufferSize = ea->GetBufferSize() + sizeof(t) / sizeof(int);
-	int* dataBuffer = new int[bufferSize];
-	int index = 0;
-
-	EventAction::AddToBuffer(dataBuffer, (int*)&t, index, t);
-	ea->Serialize(dataBuffer, index);
-
-	MPI_Request request;
-	for (int i = 0; i < CommunicationSize(); i++) {
-		if (i != CommunicationRank()) {
-			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, i, ea->GetEventClassId(), MPI_COMM_WORLD, &request);
-			LastEventTimeSent[(i >= CommunicationRank() ? i - 1 : i)] = t;
-		}
-	}
-	delete ea;
-	delete[] dataBuffer;
-}
-
 void Receive(int source, int tag)
 {
 	// tag is class Id
@@ -170,20 +150,17 @@ void RunSimulation(Time T)
 	int tag, source;
 
 	// sending output queues
-	while (!outputQ.isEmpty() && outputQ.GetEventTime() <= SimulationTime + Lookahead) {
+	while (!outputQ.isEmpty() && outputQ.GetEventTime() <= Lookahead) {
 		// will serialize and send to LP
 		Send(outputQ.GetLP(), outputQ.GetEventTime(), outputQ.GetEventAction());
 	}
 
 	// sending null msgs
 	for (int i = 0; i < NUM_PROCESS - 1; i++) {
-		if (LastEventTimeSent[i] != SimulationTime + Lookahead) {
+		if (LastEventTimeSent[i] != Lookahead) {
 			Send((i >= CommunicationRank() ? i + 1 : i), SimulationTime + Lookahead, new NULL_MSG);
 		}
 	}
-
-	// setting initial message send time
-	for (int i = 0; i < NUM_PROCESS - 1; i++) { LastEventTimeSent[i] = Lookahead; }
 
 	bool LOOP = true;
 	while (LOOP) {
@@ -291,10 +268,11 @@ void InitializeSimulation()
 	IncomingQ = new EventSet[NUM_PROCESS - 1];
 
 	// registering null message
-	RegisterEventActionClass(NULL_MSG::getUniqueId(), NULL_MSG::New);
+	RegisterEventActionClass(NULL_MSG::_EventClassID, NULL_MSG::New);
 
 	// random seed
 	srand(PROCESS_RANK * 3);
+	Distribution::SetSeed(PROCESS_RANK * 10);
 }
 
 void SetSimulationLookahead(Time lookahead) { Lookahead = lookahead; }
