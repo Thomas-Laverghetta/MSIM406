@@ -48,44 +48,42 @@ public:
 			dataRef[i] = dataBuffer[index++];
 		}
 	}
-
 };
 
 // Unique Event ID
 /// Each event action will declare this within class arg so that class has unique class ID
-#define UNIQUE_EVENT_ID \
+#define UNIQUE_EVENT_ID(ID) \
 public: \
-	static const int getUniqueId() {static int id = EventAction::GlobalClassId++;\
-return id;}\
+	static const int getUniqueId() {return ID;}\
 	const int GetClassId() { return getUniqueId(); };
 
-namespace SimExec {
-	typedef EventAction* (*NewFunctor)();
 
-	// returns current simulation time
-	Time GetSimulationTime();
+typedef EventAction* (*NewFunctor)();
 
-	// schedules event in future
-	void ScheduleEventIn(const Time& deltaT, EventAction* ea, int LP);
+// returns current simulation time
+Time GetSimulationTime();
 
-	// Starts the simulation
-	void RunSimulation(Time T);
+// schedules event in future
+void ScheduleEventIn(Time deltaT, EventAction* ea, int LP);
 
-	// Initializes Simulation
-	void InitializeSimulation();
+// Starts the simulation
+void RunSimulation(Time T);
 
-	// Sets system wide lookahead
-	void SetSimulationLookahead(Time lookahead);
+// Initializes Simulation
+void InitializeSimulation();
 
-	// Register EA class
-	void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor);
+// Sets system wide lookahead
+void SetSimulationLookahead(Time lookahead);
 
-	// returns process id 
-	int CommunicationRank();
+// Register EA class
+void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor);
 
-	// Returns number of processes
-	int CommunicationSize();
-}
+// returns process id 
+int CommunicationRank();
+
+// Returns number of processes
+int CommunicationSize();
+
 #endif // !SIMULATION_EXEC_H
 
 

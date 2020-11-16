@@ -1,10 +1,13 @@
-#ifndef EVENT_SET_H
-#define EVENT_SET_H
+#ifndef OUT_EVENT_SET_H
+#define OUT_EVENT_SET_H
 #include "SimulationExecutive.h"
+#include <iostream>
+using namespace std;
+#define DEBUG
 /*
     Thomas Laverghetta's Binary Search Tree Event Set
 */
-class EventSet
+class OutEventSet
 {
 private:
     // Event Set data
@@ -15,17 +18,18 @@ private:
         Node* _P;
         EventAction* _ea;
         Time _et;
+        int _LP;
 
-        Node(const Time& t, EventAction* ea) : _LC(nullptr), _RC(nullptr), _P(nullptr), _ea(ea), _et(t) {}
+        Node(const Time& t, EventAction* ea, int lp) : _LC(nullptr), _RC(nullptr), _P(nullptr), _ea(ea), _et(t), _LP(lp) {}
 
         ~Node() {
             delete _LC;
             delete _RC;
-            delete _ea;
+            //delete _ea;
 
             _LC = nullptr;
             _RC = nullptr;
-            _ea = nullptr;
+            //_ea = nullptr;
         }
     };
     // root of BST
@@ -38,9 +42,13 @@ private:
     unsigned int _nodeCounter;
 public:
     // saves event
-    void AddEvent(const Time& t, EventAction* ea) {
-        Node* leaf = new Node(t, ea);
+    void AddEvent(const Time& t, EventAction* ea, int LP) {
+        Node* leaf = new Node(t, ea, LP);
         _nodeCounter++;
+#ifdef DEBUG
+        cout << "SCH EVENT : EA" << ea->GetClassId() << " : LP=" << LP << " : T=" << t << " : NUM NODES=" << _nodeCounter << " : CURR=" << CommunicationRank() << endl; fflush(stdout);
+#endif
+        
 
         // no nodes in system
         if (!_root) {
@@ -82,7 +90,11 @@ public:
         return _nodeCounter;
     }
 
+    // returns true if empty
     bool isEmpty() {
+#ifdef DEBUG
+        cout << "IS EMPTY : " << (_nodeCounter == 0) << " : CURR=" << CommunicationRank() << endl; fflush(stdout);
+#endif
         return _nodeCounter == 0;
     }
 
@@ -124,18 +136,28 @@ public:
 
     // returns time with smallest time stamp and deletes event from set
     Time GetEventTime() {
+#ifdef DEBUG
+        cout << "GET TIME : " << (_small->_et) << " : CURR=" << CommunicationRank() << endl; fflush(stdout);
+#endif
         return _small->_et;
     }
 
+    // returns the LP of smallest timestamped event
+    int GetLP() {
+#ifdef DEBUG
+        cout << "GET LP : " << (_small->_LP) << " : CURR=" << CommunicationRank() << endl; fflush(stdout);
+#endif
+        return _small->_LP;
+    }
     // Defualt constructor
-    inline EventSet() {
+    inline OutEventSet() {
         _root = nullptr;
         _small = nullptr;
         _nodeCounter = 0;
     }
 
     // deletes all nodes 
-    ~EventSet() {
+    ~OutEventSet() {
         delete _root;
         _root = nullptr;
         _small = nullptr;

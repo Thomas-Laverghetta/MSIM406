@@ -21,10 +21,16 @@
     <ClCompile Include="SimulationExecutive.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TestHarness.cpp">
+    <ClCompile Include="Distribution.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Distribution.cpp">
+    <ClCompile Include="Airplane.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="EventSet.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="OutputEventSet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -32,16 +38,19 @@
     <ClInclude Include="SimulationExecutive.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="EventSet.hpp">
+    <ClInclude Include="Distribution.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="OutputEventSet.hpp">
+    <ClInclude Include="Airplane.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TestHarness.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Distribution.h">
+    <ClInclude Include="EventSet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="OutputEventSet.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

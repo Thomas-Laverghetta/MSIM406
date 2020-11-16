@@ -1,111 +1,49 @@
-#pragma once
+#ifndef TEST_HARNESS_H
+#define TEST_HARNESS_H
 #include "SimulationExecutive.h"
 #include "Distribution.h"
 
-// Cargo for the plane
-struct Cargo {
-	unsigned int quantity = 0;
-	double capacity = 0.0f;
-	double size = 0.0f;
-};
-
-class Airplane
-{
-public:
-	Airplane(double capacity, Distribution * dist = new Triangular(5.0,6.0,7.0));
-	Airplane() {}
-
-	///
-	void Arrival();
-
-	/// Sends the airplane to the process indicated by rank. 
-	void SendFlight(int rank);
-
-	/// increments num flights
-	void AddFlight();
-
-	/// Gets the number of flights completed
-	bool MaxFlight() { return _numFlights == _maxFlgihts; }
-
-	/// sets the origin of the last flight
-	void AddFlightOrigin();
-
-	/// Adds cargo to plane
-	void AddCargo(double size);
-
-	/// Removes cargo from plane
-	void RemoveCargo(double size);
-
-	/// Returns number of items in cargo
-	int GetCargoQuantity();
-
-	/// Returns how much space utilized
-	double GetCargoSize();
-
-	/// Returns whether or not item with this size can fit
-	bool Fits(double size);
-
-	/// Prints the plane console
-	void PrintAirplane();
-
-	// Serialization Methods
-	const int GetBufferSize() {
-		return ((sizeof(_planeId) +
-			sizeof(_processorId) +
-			sizeof(_lastFlight) +
-			sizeof(_numFlights) +
-			sizeof(_cargo.capacity) +
-			sizeof(_cargo.quantity) +
-			sizeof(_cargo.size)) /
-			sizeof(int));
-	}
-	void Serialize(int* databuffer, int& index);
-	void Deserialize(int* databuffer, int& index);
-
-private:
-	// Identifiers 
-	unsigned int _planeId;
-	unsigned int _processorId;
-
-	unsigned int _numFlights;		// number of flights completed
-	unsigned int _lastFlight;		// last processor
-
-	const unsigned int _maxFlgihts = 10;	// maximum number of flights
-
-	// Cargo for this plane
-	Cargo _cargo;
-
-	// Time Distributions
-	Distribution * _dist;
-
-	static unsigned int _nextId;
-};
-
-class AirplaneArrival : public EventAction {
+class TestEA : public EventAction {
 	/// Defining EventAction Unique ID and New
 	/// Only needed for Events getting sent (Event msgs) to other processors
-	UNIQUE_EVENT_ID
-	static EventAction* New() { return new AirplaneArrival; }
+	UNIQUE_EVENT_ID(2)
+		static EventAction* New() { return new TestEA; }
 public:
-	AirplaneArrival() {}
-	AirplaneArrival(Airplane * plane) { _plane = plane; }
-	void Execute() { 
-		_plane->Arrival();
+	TestEA() {
+		_dist = new Triangular(5, 7, 8);
 	}
+	void Execute() {
+		printf("\tR EVENT EXEC CURR=%i @ %f\n", CommunicationRank(), GetSimulationTime()); fflush(stdout);
 
-	const int GetBufferSize() {
-		return _plane->GetBufferSize();
-	}
+		Time nextTime = _dist->GetRV();
+		int nextProcess = rand() % CommunicationSize();
 
-	void Serialize(int* dataBuffer, int& index) {
-		_plane->Deserialize(dataBuffer, index);
+		printf("\tSCH EVENT CURR=%i TO %i @ %f\n",CommunicationRank(), nextProcess, nextTime); fflush(stdout);
+		ScheduleEventIn(nextTime, new TestEA, nextProcess);
 	}
-
-	void Deserialize(int* dataBuffer, int& index) { 
-		_plane = new Airplane(0);
-		_plane->Serialize(dataBuffer, index);
-	}
+	const int GetBufferSize() { return 0; }
+	void Serialize(int* dataBuffer, int& index) {}
+	void Deserialize(int* dataBuffer, int& index) {}
 private:
-	// save a airplane
-	Airplane* _plane;
+	Distribution* _dist;
 };
+
+void Test1() {
+
+	InitializeSimulation();
+	SetSimulationLookahead(5);
+
+	// registering airplane
+	RegisterEventActionClass(TestEA::getUniqueId(), TestEA::New);
+	
+
+	Time nextTime = 6;
+	int nextProcess = rand() % CommunicationSize();
+
+	printf("\tSCH EVENT CURR=%i TO %i @ %f\n", CommunicationRank(), nextProcess, nextTime); fflush(stdout);
+	ScheduleEventIn(nextTime, new TestEA, nextProcess);
+
+	RunSimulation(15);
+}
+#endif // !TEST_HARNESS_H
+

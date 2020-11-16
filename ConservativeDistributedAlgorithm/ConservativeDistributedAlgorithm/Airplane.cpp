@@ -1,9 +1,8 @@
-#include "TestHarness.hpp"
+#include "Airplane.hpp"
 #include <iostream>
 #include <random>
 
 using namespace std;
-using namespace SimExec;
 
 unsigned int Airplane::_nextId = 0;
 
@@ -35,14 +34,13 @@ void Airplane::Arrival()
 
 void Airplane::SendFlight(int rank)
 {
-	ScheduleEventIn(_dist->GetRV(), new AirplaneArrival(this), rank);
+	Time schTime = _dist->GetRV();
+	printf("\tSend %i,%i from %i to %i @ %f\n", _planeId, _processorId, CommunicationRank(), rank, schTime); fflush(stdout);
+	ScheduleEventIn(schTime, new AirplaneArrival(this), rank);
 }
 
 // Number of flights completed
-void Airplane::AddFlight()
-{
-	_numFlights++;
-}
+void Airplane::AddFlight() { _numFlights++; }
 
 void Airplane::AddFlightOrigin()
 {
@@ -80,8 +78,8 @@ bool Airplane::Fits(double size)
 
 void Airplane::PrintAirplane()
 {
-	printf("%i,%i,%i,%i,%i,%i,%f,%f\n",
-		CommunicationRank(), _lastFlight, _processorId, _planeId, _numFlights, _cargo.quantity, _cargo.capacity, _cargo.size);
+	printf("\tR=%i | O=%i | P=%i | ID=%i | F=%i | T=%f\n",
+		CommunicationRank(), _lastFlight, _processorId, _planeId, _numFlights, GetSimulationTime());
 	fflush(stdout);
 }
 

@@ -148,15 +148,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Distribution.cpp" />
+    <ClCompile Include="EventSet.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="OutputEventSet.cpp" />
     <ClCompile Include="SimulationExecutive.cpp" />
-    <ClCompile Include="TestHarness.cpp" />
+    <ClCompile Include="Airplane.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Distribution.h" />
-    <ClInclude Include="EventSet.hpp" />
-    <ClInclude Include="OutputEventSet.hpp" />
+    <ClInclude Include="EventSet.h" />
+    <ClInclude Include="OutputEventSet.h" />
     <ClInclude Include="SimulationExecutive.h" />
+    <ClInclude Include="Airplane.hpp" />
     <ClInclude Include="TestHarness.hpp" />
   </ItemGroup>
   <ItemGroup>
