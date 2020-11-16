@@ -12,30 +12,34 @@ public:
 	TestEA() {
 		_dist = new Triangular(5, 7, 8);
 	}
-	TestEA(int id) {
+	TestEA(int id, int rank) {
 		_dist = new Triangular(5, 7, 8);
 		_ID = id;
+		_origin = rank;
 	}
 
 	void Execute() {
-		printf("\tEVENT %i EXEC CURR=%i | TIME=%f\n", _ID, CommunicationRank(), GetSimulationTime()); fflush(stdout);
+		printf("EVENT %3i:%-3i EXEC CURR=%i | TIME=%f\n", _ID, _origin, CommunicationRank(), GetSimulationTime()); fflush(stdout);
 
 		Time nextTime = _dist->GetRV();
 		int nextProcess = rand() % CommunicationSize();
 
-		printf("SCH_EVENT %i CURR=%i->PROC=%i | SCH_TIME=%f\n",_ID, CommunicationRank(), nextProcess, nextTime + GetSimulationTime()); fflush(stdout);
-		ScheduleEventIn(nextTime, new TestEA(_ID), nextProcess);
+		/*printf("SCH_EVENT %i CURR=%i->PROC=%i | SCH_TIME=%f\n",_ID, CommunicationRank(), nextProcess, nextTime + GetSimulationTime()); fflush(stdout);*/
+		ScheduleEventIn(nextTime, new TestEA(_ID, _origin), nextProcess);
 	}
-	const int GetBufferSize() { return sizeof(_ID)/sizeof(int); }
+	const int GetBufferSize() { return (sizeof(_ID) + sizeof(_origin))/sizeof(int); }
 	void Serialize(int* dataBuffer, int& index) {
 		EventAction::AddToBuffer(dataBuffer, (int*)&_ID, index, _ID);
+		EventAction::AddToBuffer(dataBuffer, (int*)&_origin, index, _origin);
 	}
 	void Deserialize(int* dataBuffer, int& index) {
 		EventAction::TakeFromBuffer(dataBuffer, (int*)&_ID, index, _ID);
+		EventAction::TakeFromBuffer(dataBuffer, (int*)&_origin, index, _origin);
 	}
 private:
 	Distribution* _dist;
 	int _ID;
+	int _origin;
 };
 
 void Test1() {
@@ -49,10 +53,10 @@ void Test1() {
 
 	for (int i = 0; i < 2; i++) {
 		Time nextTime = Triangular(5,7,9).GetRV();
-		int nextProcess = rand() % CommunicationSize();
-		int _ID = rand();
+		int nextProcess = (CommunicationRank() + 1) % CommunicationSize();
+		int _ID = rand()%100;
 		printf("SCH_EVENT %i CURR=%i->PROC=%i | SCH_TIME=%f\n", _ID, CommunicationRank(), nextProcess, nextTime + GetSimulationTime()); fflush(stdout);
-		ScheduleEventIn(nextTime, new TestEA(_ID), nextProcess);
+		ScheduleEventIn(nextTime, new TestEA(_ID, CommunicationRank()), nextProcess);
 	}
 	RunSimulation(15);
 }

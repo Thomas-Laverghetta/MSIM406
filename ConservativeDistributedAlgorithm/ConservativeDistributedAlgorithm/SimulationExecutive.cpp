@@ -5,13 +5,11 @@
 #include <iostream>
 #include <unordered_map>
 #include <thread>
+#include <random>
 
 using namespace std;
 
 //#define DEBUG
-
-// init global Event action id
-int EventAction::GlobalClassId = 0;
 
 // Null msg
 class NULL_MSG : public EventAction {

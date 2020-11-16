@@ -1,8 +1,11 @@
 #include "Distribution.h"
-
-Distribution::Distribution() {}
+#include "SimulationExecutive.h" 
 
 std::default_random_engine Distribution::generator;
+
+Distribution::Distribution() {
+	generator = std::default_random_engine(CommunicationRank() * 10);
+}
 
 Exponential::Exponential(double mean) : Distribution()
 {
