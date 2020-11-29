@@ -1,0 +1,243 @@
+﻿<!DOCTYPE html>
+<html lang="en-us" xml:lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /> 
+<meta http-equiv="X-UA-Compatible" content="IE=Edge;chrome=1" />
+<title>Get Started with Intel&reg; MPI Library for Windows* OS</title>
+
+<link href="Getting_Started/intel_gsp_styles.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+
+<div id="banner">
+<img class="intellogo" src="Getting_Started/images/intel_logo.png">
+<img class="componentlogo" src="Getting_Started/images/mpi_icon.gif" >
+<h1 class="title">Get Started with Intel&reg; MPI Library for Windows* OS</h1>
+</div>
+<div id="contentblock">
+<div id="mainmenu">
+<h3>Contents</h3>
+<p><a class="mainmenulinks" href="#components">Product Contents</a></p>
+<p><a class="mainmenulinks" href="#prereq">Prerequisites</a></p>
+<p><a class="mainmenulinks" href="#start">Building and Running MPI Programs</a></p>
+<p><a class="mainmenulinks" href="#key_feature">Key Features</a></p>
+<p><a class="mainmenulinks" href="#troubleshoot_faq">Troubleshooting</a></p>
+<p><a class="mainmenulinks" href="#documentation">Training and Documentation</a></p>
+<p><a class="mainmenulinks" href="#legal">Legal Information</a></p>
+</div>
+
+<!-- BEGIN MAIN CONTENT -->
+
+<p><a name="intro"></a>Intel&reg; MPI Library is a multi-fabric message passing 
+library that implements the Message Passing Interface, version 3.1 (MPI-3.1) 
+specification. Use the library to develop applications that can run on multiple 
+cluster interconnects.</p>
+	<p>
+	Intel&reg; MPI Library has the following features:</p>
+	<ul >
+		<li>Low overhead, enables analyzing large amounts of data</li>
+		<li>MPI tuning utility for accelerating your applications</li>
+		<li>Interconnect independence and flexible runtime fabric selection</li>
+	</ul>
+	<p>Intel&reg; MPI Library is available as a standalone product and as part of the <a href="https://software.intel.com/en-us/intel-parallel-studio-xe">Intel® Parallel Studio XE Cluster Edition</a>.</p>
+<div id="components">
+	<h2>Product Contents</h2>
+	<p>The product comprises the following main components:</p>
+	<ul class="hcp2">
+	<li>
+	<p><i>Runtime Environment (RTO)</i> has the tools you need to run programs, including the scalable process management system (Hydra*) and supporting utilities, dynamic (<samp class="codeph">.dll</samp>) libraries, and documentation.</p>
+	</li>
+
+	<li>
+	<p><i>Software Development Kit (SDK)</i> includes all of the Runtime Environment components plus compilation tools, including compiler drivers such as <samp class="codeph">mpiicc</samp>, include files and modules, debug libraries, program database (<samp class="codeph">.pdb</samp>) files, and test codes.</p>
+	</li>
+	</ul>
+	<p>Besides the SDK and RTO components, Intel&reg; MPI Library also includes <a href="https://software.intel.com/en-us/articles/intel-mpi-benchmarks/">Intel&reg; MPI Benchmarks</a>, which enable you to measure MPI operations on various cluster architectures and MPI implementations. You can see more details in <a href="https://software.intel.com/en-us/imb-user-guide" target="_blank"><i>Intel&reg; MPI Benchmarks User Guide</i></a>.</p>
+</div>
+
+<div id="prereq">	
+	<h2><a name="prereq"></a>Prerequisites</h2>
+	<p>Before you start using Intel&reg; MPI Library make sure to complete the following steps:</p>
+	<ol>
+		<li>Set the environment variables: 
+	from the installation directory
+		<samp class="codeph"><i>&lt;installdir&gt;</i>\mpi\&lt;package number&gt;\intel64\bin</samp> directory, run the 
+		<samp class="codeph">mpivars.bat</samp> batch file:
+		<pre>&gt; <i>&lt;installdir&gt;</i>\mpi\&lt;package number&gt;\intel64\bin\mpivars.bat</pre>
+		where <samp class="codeph"><i>&lt;installdir&gt;</i></samp> is the Intel MPI Library installation directory (by default, 
+		<samp class="codeph">C:\Program Files (x86)\IntelSWTools</samp>).
+		</li><br>
+		<li>Install and run the Hydra services on the compute nodes. In the command prompt, enter:
+<pre>&gt; hydra_service -install
+&gt; hydra_service -start</pre>
+		</li>
+		<li>Register your credentials, enter:
+		<pre>&gt; mpiexec -register</pre>
+		</li>
+	</ol>
+<p>For detailed system requirements, see the <i>System Requirements</i> section in <a href="https://software.intel.com/en-us/articles/intel-mpi-library-release-notes" target="_blank"><i>Release Notes</i></a>.</p>
+</div>
+
+<div id="start">
+<h2><a name="start"></a>Building and Running MPI Programs</h2>	
+<h3>Compiling an MPI program</h3>
+<p>If you have the SDK component installed, you can build your MPI programs with Intel&reg; MPI Library. Do the following:</p>
+	<ol>
+		<li><p>Make sure you have the desired compiler installed and configured properly. For example, for the Intel&reg; C++ Compiler, run:
+		<pre>&gt; icl</pre>
+		If the command is not recognized, add the compiler to your <samp class="codeph">PATH</samp>. For the Intel&reg; compilers, you can run the <samp class="codeph">compilvervars.bat</samp> script.</p>
+		</li>
+		<br>
+		<li>
+		<p>Compile your program using the appropriate compiler driver. For example, for a test C program:
+		<pre>&gt; mpiicc -o test.exe <i>&lt;installdir&gt;</i>\test\test.c</pre></p>
+		</li>
+	</ol>
+<h3>Running an MPI program</h3>
+	<p>Execute the program using the <samp class="codeph">mpiexec</samp> command. For example, for the test program:</p>
+	<pre>&gt; mpiexec -n &lt;# of processes&gt; test.exe </pre>
+	<p>To specify the hosts to run the program on, use the <samp class="codeph">-hosts</samp> option:</p>
+	<pre>&gt; mpiexec -n &lt;# of processes&gt; -ppn &lt;# of processes per node&gt; -hosts &lt;host1&gt;,&lt;host2&gt;,...,&lt;hostN&gt; test.exe</pre>
+</div>
+<h3>Using NuGet* MPI packages in Microsoft Visual Studio*</h3>
+<p>Use the NuGet* package manager to install MPI packages <span lang="ru">in</span> a Microsoft Visual
+Studio* project. Run the following command in the NuGet Package Manager console:</p>
+<pre class="auto-style1">Install-Package intelmpi.devel.win-x64</pre>
+<h4>Local usage (one node)</h4>
+<ul>
+	<li>Link Intel MPI Library in the project's properties:	choose the "Dynamic" value in Properties->intelmpi.devel.win-x64->Linkage.
+	<li>Specify the path to <samp class="codeph">mpiexec</samp> in the project's properties (Properties -> Debugging ->Command):<pre> &lt;path_to_Visual_Studio_project&gt;\packages\&lt;redist_package_folder&gt;\runtimes\win-x64\bin\mpiexec.exe&nbsp;</pre>
+		<li>Specify the <samp class="codeph">mpiexec</samp> parameters in Properties -> Debugging ->CommandArguments:<pre> -localonly -n &lt;count of ranks&gt; "$(TargetPath)"</pre>
+		For example:
+		<pre> -localonly -n 2 "$(TargetPath)"&nbsp; </pre>
+</ul>
+
+<h4>Multinode usage</h4>
+<p><b>General steps</b></p>
+	<ul>
+		<li>Make sure to place the Visual Studio project and MPI packages on all
+		the nodes you want to use. The paths must be the same.
+		<li>Install the hydra service on each node (run <samp class="codeph">cmd</samp> as administrator):
+		<pre> &lt;path_to_Visual_Studio_project&gt;\packages\&lt;redist_package_folder&gt;\runtimes\win-x64\bin\hydra_service.exe --install&nbsp;</pre>
+		<li>Register your Windows* user credentials to enable the process
+		manager to launch MPI jobs. Credentials are encrypted and stored in the
+		registry:<pre>&lt;path_to_Visual_Studio_project&gt;\packages\&lt;redist_package_folder&gt;\runtimes\win-x64\bin\mpiexec.exe --register</pre>
+		<li>Link Intel MPI Library in the project's properties: choose the "Dynamic" value in Properties->intelmpi.devel.win-x64->Linkage
+		<li>Specify the path to <samp class="codeph">mpiexec</samp> in the project's properties (Properties -> Debugging ->Command):<pre> &lt;path_to_Visual_Studio_project&gt;\packages\&lt;redist_package_folder&gt;\runtimes\win-x64\bin\mpiexec.exe&nbsp;</pre>
+
+</ul>
+<p><b>If there is no shared path between nodes:</b></p>
+	<ul>
+		<li>Specify the <samp class="codeph">mpiexec</samp> parameters in Properties -> Debugging ->CommandArguments:<pre> -hosts &lt;host1&gt;,&lt;host2&gt;,...,&lt;hostN&gt;&nbsp; -n &lt;count of ranks&gt; -ppn &lt;count of processes per node&gt; "$(TargetPath)"</pre>
+		For example:		<pre>-hosts hostname1,hostname2 -n 4 -ppn 2 "$(TargetPath)"</pre>
+		<li>
+		Compile your application and copy it to other nodes (use the same path
+		for all nodes).<li>Run the application.</ul>
+<p><b>If there is a shared path between nodes:</b></p>
+	<ul>
+		<li>Specify the <samp class="codeph">mpiexec</samp> parameters (Properties -> Debugging ->CommandArguments):<pre>-hosts &lt;host1&gt;,&lt;host2&gt;,...,&lt;hostN&gt; -n &lt;number of nodes&gt; -ppn &lt;number of processes per node&gt; &lt;shared path to your &lt;application&gt;.exe inclusive&gt;</pre>
+		For example:<br>
+		<pre>-hosts hostname1,hostname2 -n 4 -ppn 2 &quot;\\hostname2\VS_project\x64\Release\application.exe&quot; </pre>
+		<li>Compile the application on one node. In our case, it is <code>hostname2</code>.<br></li>
+		<li>Run the application<span lang="ru">.</span></li>
+</ul>
+
+
+<div id="key_feature"><h2><a name="key_feature"></a>Key Features</h2>
+<p>
+Intel&reg; MPI Library has the following major features:
+<ul>
+<li>MPI-1, MPI-2.2 and MPI-3.1 specification conformance</li>
+<li>Support for any combination of the following interconnection fabrics:
+    <ul>
+      <li>Shared memory</li>
+      <li>RDMA-capable network fabrics through DAPL*, such as InfiniBand* and Myrinet*</li>
+      <li>Sockets, for example, TCP/IP over Ethernet*, Gigabit Ethernet*, and other
+        interconnects</li>
+     </ul>
+     </li>
+<li><b>(SDK only)</b> Support for Intel&reg; 64 architecture clusters using:
+      <ul>
+      <li>Intel&reg; C++ Compiler version 15.0 and higher</li>
+      <li>Intel&reg; Fortran Compiler version 15.0 and higher</li>
+      <li>Microsoft* Visual C++* Compilers</li>
+      </ul>
+</li>
+<li><b>(SDK only)</b> C, C++, Fortran* 77 and Fortran 90 language bindings</li>
+<li><b>(SDK only)</b> Dynamic linking</li>
+</ul>
+</p>
+
+
+</div>
+<div id="troubleshoot_faq"><h2><a name="troubleshoot_faq"></a>Troubleshooting</h2>
+<p>If you encounter problems when using Intel&reg; MPI Library, go through the following general procedures to troubleshoot them:</p>
+<ul>
+<li><p>Check system requirements and known issues in <a href="https://software.intel.com/en-us/articles/intel-mpi-library-release-notes" target="_blank"><i>Release Notes</i></a>.</p></li>
+<li><p>Check hosts accessibility. Try to run a simple non-MPI application (for example, <samp class="codeph">hostname</samp> utility) on the problem hosts with <samp class="codeph">mpiexec</samp>. This check helps you reveal the environmental or connectivity problem (for example, unreachable hosts).</p></li>
+<li><p>Run MPI application with debug information enabled. To enable the debug information, set the environment variable <samp class="codeph">I_MPI_DEBUG=6</samp>. You can also set a different debug level to get more detailed information. This action helps to find out the problem component.</p></li>
+</ul>
+<p>See more details in the <i>Troubleshooting</i> section of the <a href="https://software.intel.com/en-us/mpi-developer-guide-windows" target="_blank"><i>Developer Guide</i></a>.</p>
+</div>
+<div id="documentation">
+<h2><a name="documentation"></a>Training and Documentation</h2>
+<table class="tablecontrol">
+<tr>
+    <th>Resource</th>
+    <th>Description</th>
+</tr>
+<tr>
+    <td><a href="https://software.intel.com/en-us/intel-mpi-library-support/training">Online Training</a></td>
+    <td><p>The online training site is an excellent resource for learning the Intel&reg; MPI Library capabilities through various guides, videos, webinars, and more.</p></td>
+</tr>
+<tr>
+    <td>
+        <p><a href="https://software.intel.com/en-us/articles/intel-mpi-library-release-notes">Release
+        Notes</a></p>
+    </td>
+    <td>
+        <p>This page contains the most up-to-date information about
+        the product, including: what's new, key features, system requirements and known limitations.</p>
+    </td>
+</tr>
+<tr>
+    <td><a href="https://software.intel.com/en-us/articles/intel-mpi-library-documentation">Online Documentation</a>
+    </td>
+    <td>
+        <p>This page provides links to all available Intel&reg; MPI Library documents.</p>
+    </td>
+</tr>
+</table>
+</div>
+<div id="legal">
+
+
+<h2><a name="legal"></a>Legal Information</h2>
+<p>Intel, and the Intel logo are trademarks of Intel Corporation in the 
+U.S. and/or other countries.</p>
+<p>*Other names and brands may be claimed as the property of others.</p>
+<p>&copy; Intel Corporation</p>
+<table width="100%"> 
+ <tr><th bgcolor="#555555">Optimization Notice</th></tr>
+ <tr><td bgcolor="#f5f5f5">
+ <p>Intel's compilers may or may not optimize to the same degree for non-Intel
+ microprocessors for optimizations that are not unique to Intel microprocessors.
+ These optimizations include SSE2, SSE3, and SSSE3 instruction sets and other
+ optimizations. Intel does not guarantee the availability, functionality, or
+ effectiveness of any optimization on microprocessors not manufactured by Intel.
+ Microprocessor-dependent optimizations in this product are intended for use
+ with Intel microprocessors. Certain optimizations not specific to Intel
+ microarchitecture are reserved for Intel microprocessors. Please refer to the
+ applicable product User and Reference Guides for more information regarding the
+ specific instruction sets covered by this notice.</p>
+ <p align="right">Notice revision #20110804</p></td></tr>		   
+</table>
+</div>
+
+<!-- END MAIN CONTENT -->
+
+</div>
+<div id="footer">
+<p><a href="#top">Top</a></p>
+</div>
+</body>
+</html>

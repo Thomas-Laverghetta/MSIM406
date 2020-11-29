@@ -131,7 +131,12 @@ void ScheduleEventIn(Time deltaT, EventAction* ea, int LP)
 		InternalQ.AddEvent(deltaT + SimulationTime, ea);
 	}
 	else {
-		outputQ.AddEvent(deltaT + SimulationTime, ea, LP);
+		if (EventClassMap.find(ea->GetEventClassId()) != EventClassMap.end()) {
+			outputQ.AddEvent(deltaT + SimulationTime, ea, LP);
+		}
+		else {
+			
+		}
 	}
 }
 
@@ -168,7 +173,10 @@ void RunSimulation(Time T)
 		while (IncomingQueuesEmpty()) {
 			// wait for new message
 			while (!(CheckForComm(tag, source)));
-			Receive(source, tag);	// will deserialize and add event to queue
+			Receive(source, tag);	// will deserialize and add event to queues
+		}
+		while (CheckForComm(tag, source)) {
+			Receive(source, tag);	// will deserialize and add event to queues
 		}
 
 		// finding safe time
@@ -191,16 +199,16 @@ void RunSimulation(Time T)
 		while (!ExecutionSet.isEmpty()) {
 			SimulationTime = ExecutionSet.GetEventTime();
 
-#ifdef DEBUG
-			cout << "SIM TIME=" << SimulationTime << " : CURR=" << PROCESS_RANK << endl; fflush(stdout);
-			this_thread::sleep_for(1s);
-#endif
-
 			// if simulation time is greater than termination time then terminate
 			if (SimulationTime > T) {
 				LOOP = false;		// signals while loop to stop
 				break;
 			}
+
+#ifdef DEBUG
+			cout << "SIM TIME=" << SimulationTime << " : CURR=" << PROCESS_RANK << endl; fflush(stdout);
+			this_thread::sleep_for(1s);
+#endif
 
 			// get and execute event action
 			EventAction* ea = ExecutionSet.GetEventAction();
@@ -231,7 +239,7 @@ void RunSimulation(Time T)
 			}
 
 			// checking for new events between execution
-			if (CheckForComm(tag, source)) { Receive(source, tag); }
+			while (CheckForComm(tag, source)) { Receive(source, tag); }
 		}
 #ifdef DEBUG
 		cout << "NEXT LOOP" << endl; fflush(stdout);
@@ -255,6 +263,7 @@ void RunSimulation(Time T)
 
 void InitializeSimulation()
 {
+	this_thread::sleep_for(20s);
 	SimulationTime = 0;
 	Lookahead = 0;
 

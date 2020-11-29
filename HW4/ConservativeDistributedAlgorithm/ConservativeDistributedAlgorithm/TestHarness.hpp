@@ -10,10 +10,10 @@ class TestEA : public EventAction {
 	static EventAction* New() { return new TestEA; }
 public:
 	TestEA() {
-		_dist = new Triangular(5, 7, 8);
+		_dist = new Triangular(5, 15, 25);
 	}
 	TestEA(int id, int rank) {
-		_dist = new Triangular(5, 7, 8);
+		_dist = new Triangular(5, 15, 25);
 		_ID = id;
 		_origin = rank;
 	}
@@ -47,7 +47,7 @@ private:
 void Test1() {
 	InitializeSimulation();
 	SetSimulationLookahead(5);
-	RunSimulation(15);
+	RunSimulation(20);
 }
 
 /// Positive event test 
@@ -58,15 +58,14 @@ void Test2() {
 	// registering event with sim exec
 	RegisterEventActionClass(TestEA::_EventClassID, TestEA::New);
 	
-
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < 5; i++) {
 		Time nextTime = Triangular(5,7,9).GetRV();
 		int nextProcess = (CommunicationRank() + 1) % CommunicationSize();
 		int _ID = rand()%100;
 		printf("SCH_EVENT %i CURR=%i->PROC=%i | SCH_TIME=%f\n", _ID, CommunicationRank(), nextProcess, nextTime + GetSimulationTime()); fflush(stdout);
 		ScheduleEventIn(nextTime, new TestEA(_ID, CommunicationRank()), nextProcess);
 	}
-	RunSimulation(15);
+	RunSimulation(55);
 }
 #endif // !TEST_HARNESS_H
 
