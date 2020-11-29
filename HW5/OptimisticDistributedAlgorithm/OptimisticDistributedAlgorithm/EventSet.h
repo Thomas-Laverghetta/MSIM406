@@ -21,6 +21,7 @@ private:
     };
     // head of linked list
     Node * m_head;
+    Node* m_currPos;        // points the current positive event
 
     // size of the event set
     unsigned int m_nodeCounter;
@@ -32,6 +33,8 @@ public:
     bool isEmpty() {
         return m_nodeCounter == 0;
     }
+
+    void isAntiMsgSimultaneous(const Time& t, unsigned int eventId);
 
     // returns event with smallest time 
     EventAction * GetEventAction();

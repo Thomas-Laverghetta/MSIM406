@@ -2,17 +2,19 @@
 #define SIMULATION_EXEC_H
 
 #include <float.h>
-#include <vector>
+
 
 // defining time
 typedef double Time;
 #define TIME_MAX DBL_MAX
 
-
 // defining event action
 class EventAction {
 public:
-	EventAction() {}
+	EventAction() {
+		// random event id
+		_eventId = rand();
+	}
 
 	// Executes event to change system state
 	virtual void Execute() = 0;
@@ -28,6 +30,15 @@ public:
 
 	// get the event class Id
 	virtual const int GetEventClassId() { return INT_MIN; }
+
+	// schedules event in future
+	void ScheduleEventIn(Time deltaT, EventAction* ea, int LP);
+
+	// Returns event's ID (not class ID)
+	unsigned int GetEventId() { return _eventId; }
+
+	// Sets event id
+	void SetEventId(unsigned int& eventId) { _eventId = eventId; }
 
 	// Adds data from variable to buffer (serializes data)
 	template <class T>
@@ -46,6 +57,10 @@ public:
 			dataRef[i] = dataBuffer[index++];
 		}
 	}
+
+	~EventAction();
+private:
+	unsigned int _eventId;
 };
 
 // Unique Event ID
@@ -62,7 +77,7 @@ typedef EventAction* (*NewFunctor)();
 Time GetSimulationTime();
 
 // schedules event in future
-void ScheduleEventIn(Time deltaT, EventAction* ea, int LP);
+void InitialScheduleEventIn(Time deltaT, EventAction* ea, int LP);
 
 // Starts the simulation
 void RunSimulation(Time T);
