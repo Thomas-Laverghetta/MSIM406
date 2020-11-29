@@ -47,7 +47,7 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
             }
         }
     }
-    else {
+    else { // not anti-msg
         Node* new_node = new Node(t, ea);
 
         // Special case for the head end
@@ -151,5 +151,5 @@ EventAction * EventSet::GetEventAction(){
 }
 
 Time EventSet::GetEventTime(){
-    return m_head->m_et;
+    return m_currPos->m_et;
 }
