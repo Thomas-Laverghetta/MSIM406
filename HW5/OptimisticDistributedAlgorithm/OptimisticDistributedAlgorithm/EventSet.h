@@ -19,12 +19,24 @@ private:
         Node();
         Node(const Time& t, EventAction * ea);
     };
+    class AntiNode {
+    public:
+        AntiNode* m_next;
+        unsigned int _eventId;
+        Time m_et;
+
+        AntiNode(const Time& t, EventAction* ea) {
+            m_et = t;
+            _eventId = ea->GetEventId();
+        }
+    };
     // head of linked list
     Node * m_head;
-    Node* m_currPos;        // points the current positive event
+    AntiNode* _antiHead;
 
     // size of the event set
     unsigned int m_nodeCounter;
+    unsigned int _antiMsgCounter;
 public:
     // saves event
     void AddEvent(const Time& t, EventAction * ea);
@@ -49,6 +61,8 @@ public:
     inline EventSet(){
         m_head = nullptr;
         m_nodeCounter = 0;
+        _antiHead = nullptr;
+        _antiMsgCounter = 0;
     }
 
     // deletes all nodes 

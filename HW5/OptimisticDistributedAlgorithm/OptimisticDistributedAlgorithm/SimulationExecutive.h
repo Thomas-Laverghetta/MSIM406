@@ -85,9 +85,6 @@ void RunSimulation(Time T);
 // Initializes Simulation
 void InitializeSimulation();
 
-// Sets system wide lookahead
-void SetSimulationLookahead(Time lookahead);
-
 // Register EA class
 void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor);
 

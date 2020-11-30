@@ -40,40 +40,48 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
             }
             // if current->m_next->m_et > t
             else if (current->m_next != nullptr) {
+                AntiNode* currAnti = _antiHead;
                 // place in list to wait for msg to arrive
-                Node* new_node = new Node(t, ea);
-                new_node->m_next = current->m_next;
-                current->m_next = new_node;
+                AntiNode* new_node = new AntiNode(t, ea);
+                new_node->m_next = _antiHead->m_next;
+                _antiHead->m_next = new_node;
+                _antiMsgCounter++;
             }
         }
     }
-    else { // not anti-msg
+    else { 
+        // determine if event is associated with anti msg waiting
+        if (_antiMsgCounter > 0) {
+            AntiNode* currAnti = _antiHead;
+            while (currAnti->m_next != nullptr && !(currAnti->m_next->m_et == t && currAnti->m_next->_eventId == ea->GetEventId())) {
+                currAnti = currAnti->m_next;
+            }
+            // found
+            if (currAnti->m_next != nullptr && currAnti->m_next->m_et == t && currAnti->m_next->_eventId == ea->GetEventId()) {
+                AntiNode* temp = currAnti->m_next;
+
+                currAnti->m_next = currAnti->m_next->m_next;
+                delete temp;
+                _antiMsgCounter--;
+            }
+        }
+        
+        // Not Associated w/anti-msg
         Node* new_node = new Node(t, ea);
 
         // Special case for the head end
         if (m_head == nullptr || (m_head == nullptr ? true : m_head->m_et >= new_node->m_et)) {
             new_node->m_next = m_head;
-            m_currPos = m_head = new_node;
+            m_head = new_node;
         }
         else {
             // Locate the node before the point of insertion 
             Node* current = m_head;
             while (current->m_next != nullptr &&
-                current->m_next->m_et <= new_node->m_et 
-                && (current->m_next->m_et == new_node->m_et ? current->m_next->m_ea->GetEventId() != new_node->m_ea->GetEventId() : true))
+                current->m_next->m_et < new_node->m_et)
             {
                 current = current->m_next;
             }
-
-            // if waiting anti-msg was found
-            if (current->m_next->m_ea->GetEventId() == new_node->m_ea->GetEventId()) {
-                EventAction* ea = current->m_next->m_ea;
-                current->m_next = current->m_next->m_next;
-                delete ea;
-                m_nodeCounter--;
-                return;
-            }
-            
             new_node->m_next = current->m_next;
             current->m_next = new_node;
         }
@@ -98,7 +106,7 @@ void EventSet::isAntiMsgSimultaneous(const Time& t, unsigned int eventId)
         }
 
         // if current != null, then found Simultaneous event
-        if (current->m_next != nullptr) {
+        if (current->m_next != nullptr && current->m_next->m_et == t && current->m_next->m_ea->GetEventId() == eventId) {
             // remove event from list
             EventAction* ea = current->m_next->m_ea;
             current->m_next = current->m_next->m_next;
@@ -110,46 +118,22 @@ void EventSet::isAntiMsgSimultaneous(const Time& t, unsigned int eventId)
 
 EventAction * EventSet::GetEventAction(){
     // current head node
-    Node * current = m_currPos;
-    
-    // determining if next node is anti-msg
-    if (m_currPos->m_next != nullptr && m_currPos->m_next->m_ea->GetEventId() != 0) {
-        if (m_currPos == m_head) {
-            m_currPos = m_head = m_currPos->m_next;
-        }
-        else {
-            m_currPos = m_currPos->m_next;
-        }
-    }
-    // anti-msg next
-    else if (m_currPos->m_next != nullptr) {
-        // iterate until next is not anti-msg (find pos msg)
-        Node* curr = nullptr;
-        if (m_currPos == m_head)
-            curr = m_head = m_currPos->m_next;
-        else
-            curr = m_currPos->m_next;
+    Node* current = m_head;
 
-        while (curr != nullptr && curr->m_ea->GetEventId() == 0) {
-            curr = curr->m_next;
-        }
-        m_currPos = curr;
-    }
-    else {
-        m_currPos = m_head = nullptr;
-    }
-    
+    // swap nodes
+    m_head = m_head->m_next;
+
     // get current event action
-    EventAction * ea = current->m_ea;
+    EventAction* ea = current->m_ea;
 
     // deleting node from event set
     delete current;
     current = nullptr;
     m_nodeCounter--;
 
-    return ea; 
+    return ea;
 }
 
 Time EventSet::GetEventTime(){
-    return m_currPos->m_et;
+    return m_head->m_et;
 }

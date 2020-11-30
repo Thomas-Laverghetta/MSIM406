@@ -254,7 +254,7 @@ unordered_map<unsigned int, stack<AntiMsgStruct*>> AntiMsg_Map;
 void EventAction::ScheduleEventIn(Time deltaT, EventAction* ea, int LP)
 {
 	// create and push new anti-msg
-	AntiMsg_Map[this->_eventId].push(new AntiMsgStruct(this->_eventId, LP, deltaT));
+	AntiMsg_Map[this->_eventId].push(new AntiMsgStruct(this->_eventId, LP, deltaT + SimulationTime));
 	
 	// schedule w/sim-exec
 	ScheduleEventIn(deltaT, ea, LP);
