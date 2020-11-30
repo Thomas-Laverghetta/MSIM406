@@ -18,14 +18,19 @@ class AntiMsg : public EventAction {
 	UNIQUE_EVENT_ID(0)
 	static EventAction* New() { return new AntiMsg; }
 public:
-	AntiMsg(unsigned int& eventId) { _eventId = eventId; }
+	AntiMsg(unsigned int& eventId) { SetEventId(eventId); }
 	AntiMsg() {}
 	void Execute() {}
-	const int GetBufferSize() { return sizeof(_eventId)/sizeof(int); }
-	void Serialize(int* dataBuffer, int& index) { EventAction::AddToBuffer(dataBuffer, (int*)&_eventId, index, _eventId); }
-	void Deserialize(int* dataBuffer, int& index) { EventAction::TakeFromBuffer(dataBuffer, (int*)&_eventId, index, _eventId); }
-private:
-	unsigned int _eventId;
+	const int GetBufferSize() { return sizeof(GetEventId())/sizeof(int); }
+	void Serialize(int* dataBuffer, int& index) { 
+		unsigned int eventId = GetEventId();
+		EventAction::AddToBuffer(dataBuffer, (int*)&eventId, index, eventId);
+	}
+	void Deserialize(int* dataBuffer, int& index) { 
+		unsigned int eventId;
+		EventAction::TakeFromBuffer(dataBuffer, (int*)&eventId, index, eventId);
+		SetEventId(eventId);
+	}
 };
 
 //-------------SIMULATION EXEC--------------------
@@ -39,7 +44,7 @@ struct ExecutedEvents {
 // Simulation Executive private variables:
 Time SimulationTime = 0;		// simulation time
 unordered_map<unsigned int, NewFunctor> EventClassMap; // mapping of class id to new methods
-EventSet InternalEventSet;		// this process internal Q
+EventSet ActiveEventSet;		// active events to execute
 stack<ExecutedEvents*> ExecutedSet;// Set of executed Events
 bool ROLLBACK = false;			// true when rollback is occuring
 
@@ -122,7 +127,7 @@ void Receive(int source, int tag)
 	ea->SetEventId(eventId);
 
 	// add to queue
-	InternalEventSet.AddEvent(t, ea);
+	ActiveEventSet.AddEvent(t, ea);
 
 	delete[] dataBuffer;
 
@@ -138,7 +143,7 @@ Time GetSimulationTime() { return SimulationTime; }
 void ScheduleEventIn(Time deltaT, EventAction* ea, int LP)
 {
 	if (LP == CommunicationRank()) {
-		InternalEventSet.AddEvent(deltaT + SimulationTime, ea);
+		ActiveEventSet.AddEvent(deltaT + SimulationTime, ea);
 	}
 	else {
 		if (EventClassMap.find(ea->GetEventClassId()) != EventClassMap.end()) {
@@ -167,9 +172,9 @@ void RunSimulation(Time T)
 		// wait for events
 		do {
 			while (CheckForComm(tag, source)) { Receive(source, tag); }
-		} while (InternalEventSet.isEmpty());
+		} while (ActiveEventSet.isEmpty());
 
-		tempTime = InternalEventSet.GetEventTime();
+		tempTime = ActiveEventSet.GetEventTime();
 
 		// if simulation time is greater than termination time then terminate
 		if (tempTime > T) {
@@ -194,7 +199,7 @@ void RunSimulation(Time T)
 #endif
 
 		// get and execute event action
-		EventAction* ea = InternalEventSet.GetEventAction();
+		EventAction* ea = ActiveEventSet.GetEventAction();
 		ea->Execute();
 		ExecutedSet.push(new ExecutedEvents(ea, SimulationTime));
 		
@@ -206,7 +211,7 @@ void RunSimulation(Time T)
 	CommunicationFinalize();
 
 	// destoying sets
-	InternalEventSet.~EventSet();
+	ActiveEventSet.~EventSet();
 
 	// resetting simulation variables
 	SimulationTime = 0;
@@ -268,7 +273,7 @@ EventAction::~EventAction()
 			// determine if simultanious event
 			if (anti_msg_stack->top()->_LP == PROCESS_RANK && anti_msg_stack->top()->_t == SimulationTime) {
 				// event set will determine if simultaneous event
-				InternalEventSet.isAntiMsgSimultaneous(anti_msg_stack->top()->_t, anti_msg_stack->top()->_eventId);
+				ActiveEventSet.isAntiMsgSimultaneous(anti_msg_stack->top()->_t, anti_msg_stack->top()->_eventId);
 			}
 			else if (!(anti_msg_stack->top()->_LP == PROCESS_RANK && anti_msg_stack->top()->_t < SimulationTime))
 			{ // send anti-msgs for scheduled events (ignore executed on this process)

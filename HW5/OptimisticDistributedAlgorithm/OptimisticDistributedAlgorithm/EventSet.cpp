@@ -26,7 +26,7 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
             m_nodeCounter--;
         }
         else if (current != nullptr) {
-            while (current->m_next != nullptr && current->m_next->m_et <= t && !(current->m_next->m_et == t && current->m_next->m_ea->GetEventId() == ea->GetEventId())) {
+            while (current->m_next != nullptr && current->m_next->m_et <= t && current->m_next->m_ea->GetEventId() != ea->GetEventId()) {
                 current = current->m_next;
             }
 
@@ -38,8 +38,8 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 delete ea;
                 m_nodeCounter--;
             }
-            // if current->m_next->m_et > t
-            else if (current->m_next != nullptr) {
+            // if event not found, wait for event
+            else{
                 AntiNode* currAnti = _antiHead;
                 // place in list to wait for msg to arrive
                 AntiNode* new_node = new AntiNode(t, ea);
@@ -65,27 +65,27 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 _antiMsgCounter--;
             }
         }
-        
-        // Not Associated w/anti-msg
-        Node* new_node = new Node(t, ea);
+        else { // no wanti-msgs waiting, place in active event set
+            Node* new_node = new Node(t, ea);
 
-        // Special case for the head end
-        if (m_head == nullptr || (m_head == nullptr ? true : m_head->m_et >= new_node->m_et)) {
-            new_node->m_next = m_head;
-            m_head = new_node;
-        }
-        else {
-            // Locate the node before the point of insertion 
-            Node* current = m_head;
-            while (current->m_next != nullptr &&
-                current->m_next->m_et < new_node->m_et)
-            {
-                current = current->m_next;
+            // Special case for the head end
+            if (m_head == nullptr || (m_head == nullptr ? true : m_head->m_et >= new_node->m_et)) {
+                new_node->m_next = m_head;
+                m_head = new_node;
             }
-            new_node->m_next = current->m_next;
-            current->m_next = new_node;
+            else {
+                // Locate the node before the point of insertion 
+                Node* current = m_head;
+                while (current->m_next != nullptr &&
+                    current->m_next->m_et < new_node->m_et)
+                {
+                    current = current->m_next;
+                }
+                new_node->m_next = current->m_next;
+                current->m_next = new_node;
+            }
+            m_nodeCounter++;
         }
-        m_nodeCounter++;
     }
 }
 
