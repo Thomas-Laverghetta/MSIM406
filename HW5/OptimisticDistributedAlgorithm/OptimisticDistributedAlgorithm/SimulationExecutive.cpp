@@ -215,6 +215,7 @@ void RunSimulation(Time T)
 		// testing for rollback
 		else if (tempTime < SimulationTime) {
 			ROLLBACK = true;
+			// delete events prior to this new event
 			while (ExecutedSet.top()->_t < tempTime) {
 				// delete event then pop top
 				delete ExecutedSet.top();	// deleting will cause any anti-msg to be sent
