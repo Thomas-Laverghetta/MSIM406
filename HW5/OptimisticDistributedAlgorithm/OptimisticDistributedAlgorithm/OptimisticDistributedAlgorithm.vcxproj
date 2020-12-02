@@ -157,7 +157,6 @@
   <ItemGroup>
     <ClInclude Include="Distribution.h" />
     <ClInclude Include="EventSet.h" />
-    <ClInclude Include="OutputEventSet.h" />
     <ClInclude Include="SimulationExecutive.h" />
     <ClInclude Include="Airplane.hpp" />
     <ClInclude Include="TestHarness.hpp" />

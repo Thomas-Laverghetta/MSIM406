@@ -56,9 +56,7 @@ public:
     // Defualt constructor
     inline EventSet(){
         m_head = nullptr;
-        m_nodeCounter = 0;
         _antiHead = nullptr;
-        _antiMsgCounter = 0;
     }
 
     // deletes all nodes 
@@ -70,7 +68,6 @@ public:
             delete to_delete;
             to_delete = nullptr; 
         }
-        m_nodeCounter = 0;
     }
 };
 #endif

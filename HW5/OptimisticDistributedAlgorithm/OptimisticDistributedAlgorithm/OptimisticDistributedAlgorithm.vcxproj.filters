@@ -50,9 +50,6 @@
     <ClInclude Include="EventSet.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="OutputEventSet.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

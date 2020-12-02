@@ -4,7 +4,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <thread>
-#include <stack>
+#include "Stack.hpp"
 #include "Distribution.h"
 
 using namespace std;
@@ -39,13 +39,20 @@ struct ExecutedEvents {
 	Time _t;
 	ExecutedEvents(EventAction* ea, Time t) : _ea(ea), _t(t) {}
 	~ExecutedEvents() { delete _ea; }
+
+	bool operator==(ExecutedEvents& ee) {
+		if (ee._ea->GetEventId() == this->_ea->GetEventId() && ee._t == this->_t)
+			return true;
+		else
+			return false;
+	}
 };
 
 // Simulation Executive private variables:
 Time SimulationTime = 0;		// simulation time
 unordered_map<unsigned int, NewFunctor> EventClassMap; // mapping of class id to new methods
 EventSet ActiveEventSet;		// active events to execute
-stack<ExecutedEvents*> ExecutedSet;// Set of executed Events
+Stack<ExecutedEvents*> ExecutedSet;// Set of executed Events
 bool ROLLBACK = false;			// true when rollback is occuring
 
 //----------------Comm-------------------
@@ -120,15 +127,40 @@ void Receive(int source, int tag)
 	// deserialize time and event
 	int index = 0;
 	Time t = 0;
+
+	// deserializing time
 	EventAction::TakeFromBuffer(dataBuffer, (int*)&t, index, t);
+
+	// deserializing event action
 	ea->Deserialize(dataBuffer, index);
+	
+	// deserializing and associating eventId
 	unsigned int eventId = 0;
 	EventAction::TakeFromBuffer(dataBuffer, (int*)&eventId, index, eventId);
 	ea->SetEventId(eventId);
 
-	// add to queue
-	ActiveEventSet.AddEvent(t, ea);
+	// if anti-msg, check if in executed events
+	if (ea->GetEventClassId() == 0 && ExecutedSet.find(&ExecutedEvents(ea, t))) {
+		// rollback to event prier this event
+		ROLLBACK = true;
 
+		// delete all events above event associated w/anti-msg
+		while (!(ExecutedSet.top()->_t == t && ExecutedSet.top()->_ea->GetEventId() == ea->GetEventId())) {
+			// delete event then pop top
+			delete ExecutedSet.top();	// deleting will cause any anti-msg to be sent
+			ExecutedSet.pop();
+		}
+		// delete the event associated with anti-msg
+		delete ExecutedSet.top();	// deleting will cause any anti-msg to be sent
+		ExecutedSet.pop();
+
+		ROLLBACK = false;
+	}
+	// if not anti-msg and not found in executed set, then schedule
+	else {
+		// add to queue
+		ActiveEventSet.AddEvent(t, ea);
+	}
 	delete[] dataBuffer;
 
 #ifdef DEBUG
@@ -253,7 +285,7 @@ struct AntiMsgStruct {
 		_t = t;
 	}
 };
-unordered_map<unsigned int, stack<AntiMsgStruct*>> AntiMsg_Map;
+unordered_map<unsigned int, Stack<AntiMsgStruct*>> AntiMsg_Map;
 
 // Event Action's schedule event, will be used
 void EventAction::ScheduleEventIn(Time deltaT, EventAction* ea, int LP)
@@ -267,7 +299,7 @@ void EventAction::ScheduleEventIn(Time deltaT, EventAction* ea, int LP)
 
 EventAction::~EventAction()
 {
-	stack<AntiMsgStruct*> * anti_msg_stack = &AntiMsg_Map[this->_eventId];
+	Stack<AntiMsgStruct*> * anti_msg_stack = &AntiMsg_Map[this->_eventId];
 	if (ROLLBACK) {
 		while (!anti_msg_stack->empty()) {
 			// determine if simultanious event
@@ -275,8 +307,9 @@ EventAction::~EventAction()
 				// event set will determine if simultaneous event
 				ActiveEventSet.isAntiMsgSimultaneous(anti_msg_stack->top()->_t, anti_msg_stack->top()->_eventId);
 			}
+			// send anti-msgs for scheduled events (ignore executed on this process - they will be destroried by rollback)
 			else if (!(anti_msg_stack->top()->_LP == PROCESS_RANK && anti_msg_stack->top()->_t < SimulationTime))
-			{ // send anti-msgs for scheduled events (ignore executed on this process)
+			{ 
 				// create anti msg then schedule anti-msg
 				ScheduleEventIn(anti_msg_stack->top()->_t, new AntiMsg(anti_msg_stack->top()->_eventId), anti_msg_stack->top()->_LP);
 			}
