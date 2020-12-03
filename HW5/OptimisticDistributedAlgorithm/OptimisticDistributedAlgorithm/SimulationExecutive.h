@@ -58,6 +58,8 @@ public:
 		}
 	}
 
+	void SendAntiMsg();
+
 	~EventAction();
 private:
 	unsigned int _eventId;

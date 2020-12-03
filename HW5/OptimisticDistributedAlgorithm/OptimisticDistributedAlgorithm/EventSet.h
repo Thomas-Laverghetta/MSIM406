@@ -12,41 +12,25 @@ private:
     // Event Set data
     class Node{
     public:
-        Node * m_next;
-        EventAction * m_ea;
-        Time m_et;
+        Node * _next;
+        Node*   _prev;
+        EventAction * _ea;
+        Time _et;
 
         Node();
         Node(const Time& t, EventAction * ea);
     };
-    class AntiNode {
-    public:
-        AntiNode* m_next;
-        unsigned int _eventId;
-        Time m_et;
-
-        AntiNode(const Time& t, EventAction* ea) {
-            m_et = t;
-            _eventId = ea->GetEventId();
-        }
-    };
-    // head of linked list
-    Node * m_head;
-    AntiNode* _antiHead;
-
-    // size of the event set
-    unsigned int m_nodeCounter;
-    unsigned int _antiMsgCounter;
+  
+    Node* _curr;            // smallest timestamped scheduled event
+    Node* _exec;            // last event executed
 public:
     // saves event
     void AddEvent(const Time& t, EventAction * ea);
 
     // Returns size of Event Set
     bool isEmpty() {
-        return m_nodeCounter == 0;
+        return _curr;
     }
-
-    void isAntiMsgSimultaneous(const Time& t, unsigned int eventId);
 
     // returns event with smallest time 
     EventAction * GetEventAction();
@@ -54,27 +38,10 @@ public:
     // returns time with smallest time stamp and deletes event from set
     Time GetEventTime();
 
-    // removes event
-    //void RemoveEvent(EventAction * ea, Time t);
-
     // Defualt constructor
     inline EventSet(){
-        m_head = nullptr;
-        m_nodeCounter = 0;
-        _antiHead = nullptr;
-        _antiMsgCounter = 0;
-    }
-
-    // deletes all nodes 
-    ~EventSet(){
-        // Node * current = m_head;
-        while (m_head != nullptr){
-            Node * to_delete = m_head;
-            m_head = m_head->m_next;
-            delete to_delete;
-            to_delete = nullptr; 
-        }
-        m_nodeCounter = 0;
+        _curr = 0;
+        _exec = 0;
     }
 };
 #endif
