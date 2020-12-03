@@ -1,8 +1,9 @@
 #ifndef SIMULATION_EXEC_H
 #define SIMULATION_EXEC_H
 
+#include <stack>
 #include <float.h>
-
+#include "Distribution.h"
 
 // defining time
 typedef double Time;
@@ -29,7 +30,7 @@ public:
 	virtual void Deserialize(int* dataBuffer, int& index) = 0;
 
 	// get the event class Id
-	virtual const int GetEventClassId() { return INT_MIN; }
+	virtual const int GetEventClassId() { return -1; }
 
 	// schedules event in future
 	void ScheduleEventIn(Time deltaT, EventAction* ea, int LP);
@@ -62,6 +63,17 @@ public:
 
 	~EventAction();
 private:
+	struct AntiMsgStruct {
+		Time _t;
+		unsigned int _eventId;
+		int _LP;
+		AntiMsgStruct(unsigned int eventId, int LP, Time t) {
+			_eventId = eventId;
+			_LP = LP;
+			_t = t;
+		}
+	};
+	std::stack<AntiMsgStruct*> _antiMsgs;
 	unsigned int _eventId;
 };
 

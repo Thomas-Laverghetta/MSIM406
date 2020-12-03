@@ -1,9 +1,10 @@
 #include "SimulationExecutive.h"
-#include "TestHarness.hpp"
+#include "TestHarness.h"
 #include <thread>
+#include <chrono>
 
 int main() {
-	Test2();
+	TestOptimisticSimulation();
 
 	return 0;
 }

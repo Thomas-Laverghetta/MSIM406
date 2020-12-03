@@ -18,7 +18,7 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
     
     // testing if ea is anti-msg (event class id == 0)
     if (ea->GetEventClassId() == 0) {
-        if (_curr && _curr->_et <= t) {
+        if (_curr && _curr->_et < t) {
             if (_curr && _curr->_ea->GetEventId() == ea->GetEventId()) {
                 Node* tmp = _curr;
 
@@ -31,6 +31,9 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
 
                 // deleting event
                 delete tmp->_ea;
+                delete ea;
+
+                // deleting node
                 delete tmp;
                 tmp = 0;
             }
@@ -43,7 +46,7 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 if (curr->_next && curr->_next->_et == t) {
                     Node* tmp = curr->_next;
 
-                    curr->_next = curr->_next->_next;
+                    curr->_next = tmp->_next;
 
                     if (tmp->_next) {
                         tmp->_next->_prev = curr;
@@ -51,49 +54,40 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
 
                     // deleting event
                     delete tmp->_ea;
+                    delete ea;
                     delete tmp;
                     tmp = 0;
                 }
                 // schedule anti-msg
                 else {
-                    Node* new_node = new Node(t, ea);
+                    Node* A = new Node(t, ea);
                     // set new_node's pointers to curr since curr is at one event lower than larger timestamp/null
-                    new_node->_next = curr;
-                    new_node->_prev = curr->_prev;
+                    A->_next = curr->_next;
+                    A->_prev = curr;
+                    curr->_next = A;
 
-                    // if there exists a previous executed event
-                    if (curr->_prev) {
-                        curr->_prev->_next = new_node;   // repointing previous event to next event relative to this event
-                    }
-                    if (curr->_next) {
-                        curr->_next->_prev = new_node;   // repointing next event to previous event ralative to this event
-                    }
+                    if (A->_next)
+                        A->_next->_prev = A;
                 }
             }
         }
         // search executed set
-        else {
-            if (!_exec) { // either no executed events w/no sch events or just no executed events
-                // schedule anti-msg
-                Node* new_node = new Node(t, ea);
-                // set new_node's pointers to exec
-                _exec = new_node;
-                _exec->_next = _curr;
-
-                if (_curr) {
-                    _curr->_prev = _exec; 
-                }
-            }
-            else if (_exec->_ea->GetEventId() == ea->GetEventId()) {
+        else if (_exec && _exec->_et > t) {
+            if (_exec->_ea->GetEventId() == ea->GetEventId() && _exec->_et == t) {
                 Node* tmp = _exec;
 
                 // rollback
-                _exec = _exec->_prev;
-                if (_exec)
-                    _exec->_next = _curr;
+                if (_exec->_prev) {
+                    _exec->_prev->_next = _curr;
+                    _exec = _exec->_prev->_prev;
+                }
+                else {
+                    _exec = 0;
+                }
 
                 if (_curr)
-                    _curr->_prev = _exec;
+                    _curr->_prev = tmp->_prev;
+                _curr = tmp->_prev;
 
                 // Send anti-msgs
                 tmp->_ea->SendAntiMsg();
@@ -102,55 +96,330 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 delete tmp->_ea;
                 delete tmp;
                 tmp = 0;
+                delete ea;
             }
             else {
                 Node* curr = _exec;
-                while (curr->_prev && curr->_prev->_et <= t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t)) {
+                while (curr->_prev && curr->_prev->_et >= t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t)) {
                     curr = curr->_prev;
                 }
                 // if curr exists (not null) and correct time, remove event from list
                 if (curr->_prev && curr->_prev->_et == t) {
                     Node* tmp = curr->_prev;
 
-
-                    // rollback
                     curr->_prev = tmp->_prev;
                     
                     if (tmp->_prev) {
                         tmp->_prev->_next = curr;
-                        _exec = tmp->_prev;
                     }
-                    else {
+                    
+                    // rolling back
+                    while (_exec != tmp->_prev)
+                    {
+                        _exec->_ea->SendAntiMsg();
+                        _exec = _exec->_prev;
+                    }
+                    
+                    if (tmp->_prev)
+                        _exec = tmp->_prev->_prev;
+                    else
                         _exec = 0;
-                    }
-                    _curr = curr;
-                   
-                    // send anti-msgs 
+
+                    _curr = tmp->_prev;
+
+                    // Send anti-msgs
                     tmp->_ea->SendAntiMsg();
 
                     // deleting event
                     delete tmp->_ea;
                     delete tmp;
                     tmp = 0;
+                    delete ea;
                 }
                 // schedule anti-msg
                 else {
-                    Node* new_node = new Node(t, ea);
+                    Node* A = new Node(t, ea);
                     // set new_node's pointers to curr since curr is at one event lower than larger timestamp/null
-                    new_node->_prev = curr;
-                    new_node->_next = curr->_next;
+                    A->_prev = curr->_prev;
+                    A->_next = curr;
+                    curr->_prev = A;
 
-                    // if there exists a previous executed event
-                    if (curr->_next) {
-                        curr->_next->_prev = new_node;   // repointing previous event to next event relative to this event
+                    if (A->_prev)
+                        A->_prev->_next = A;
+                }
+            }
+        }    
+        // inbetween next event and previous event
+        else if (_curr && _curr->_et > t && _exec && _exec->_et < t) {
+            Node* A = new Node(t, ea);
+            A->_next = _curr;
+            _curr->_prev = A;
+
+            A->_prev = _exec;
+            _exec->_next = A;
+            _exec = A;
+        }
+        // if time equals either
+        else if ((_curr && _curr->_et == t) || (_exec && _exec->_et == t)) {
+            if ((_curr && _curr->_et == t) && (_exec && _exec->_et == t)) {
+                // checking head
+                if (_curr && _curr->_ea->GetEventId() == ea->GetEventId()) {
+                    Node* tmp = _curr;
+
+                    _curr = _curr->_next;
+                    if (_curr)
+                        _curr->_prev = _exec;
+
+                    if (_exec)
+                        _exec->_next = _curr;
+
+                    // deleting event
+                    delete tmp->_ea;
+                    delete ea;
+
+                    // deleting node
+                    delete tmp;
+                    tmp = 0;
+                }
+                else {
+                    Node* curr = _curr;
+                    while (curr->_next && curr->_next->_et == t && !(curr->_next->_ea->GetEventId() == ea->GetEventId() && curr->_next->_et == t)) {
+                        curr = curr->_next;
                     }
-                    if (curr->_prev) {
-                        curr->_prev->_next = new_node;   // repointing next event to previous event ralative to this event
+                    // if curr exists (not null) and correct time, remove event from list
+                    if (curr->_next && curr->_next->_et == t) {
+                        Node* tmp = curr->_next;
+
+                        curr->_next = tmp->_next;
+
+                        if (tmp->_next) {
+                            tmp->_next->_prev = curr;
+                        }
+
+                        // deleting event
+                        delete tmp->_ea;
+                        delete ea;
+                        delete tmp;
+                        tmp = 0;
+                    }
+                    if (_exec->_ea->GetEventId() == ea->GetEventId() && _exec->_et == t) {
+                        Node* tmp = _exec;
+
+                        // rollback
+                        if (_exec->_prev) {
+                            _exec->_prev->_next = _curr;
+                            _exec = _exec->_prev->_prev;
+                        }
+                        else {
+                            _exec = 0;
+                        }
+
+                        if (_curr)
+                            _curr->_prev = tmp->_prev;
+                        _curr = tmp->_prev;
+
+                        // Send anti-msgs
+                        tmp->_ea->SendAntiMsg();
+
+                        // deleting event
+                        delete tmp->_ea;
+                        delete tmp;
+                        tmp = 0;
+                        delete ea;
+                    }
+                    else {
+                        curr = _exec;
+                        while (curr->_prev && curr->_prev->_et == t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t)) {
+                            curr = curr->_prev;
+                        }
+                        // if curr exists (not null) and correct time, remove event from list
+                        if (curr->_prev && curr->_prev->_et == t) {
+                            Node* tmp = curr->_prev;
+
+                            curr->_prev = tmp->_prev;
+
+                            if (tmp->_prev) {
+                                tmp->_prev->_next = curr;
+                            }
+
+                            // rolling back
+                            while (_exec != tmp->_prev)
+                            {
+                                _exec->_ea->SendAntiMsg();
+                                _exec = _exec->_prev;
+                            }
+
+                            if (tmp->_prev)
+                                _exec = tmp->_prev->_prev;
+                            else
+                                _exec = 0;
+
+                            _curr = tmp->_prev;
+
+                            // Send anti-msgs
+                            tmp->_ea->SendAntiMsg();
+
+                            // deleting event
+                            delete tmp->_ea;
+                            delete tmp;
+                            tmp = 0;
+                            delete ea;
+                        }
+                        // schedule anti-msg
+                        else {
+                            Node* A = new Node(t, ea);
+                            // set new_node's pointers to curr since curr is at one event lower than larger timestamp/null
+                            A->_prev = curr->_prev;
+                            A->_next = curr;
+                            curr->_prev = A;
+
+                            if (A->_prev)
+                                A->_prev->_next = A;
+                        }
+                    }
+                }
+            }
+            else if (_exec && _exec->_et == t) {
+                if (_exec->_ea->GetEventId() == ea->GetEventId() && _exec->_et == t) {
+                    Node* tmp = _exec;
+
+                    // rollback
+                    if (_exec->_prev) {
+                        _exec->_prev->_next = _curr;
+                        _exec = _exec->_prev->_prev;
+                    }
+                    else {
+                        _exec = 0;
+                    }
+
+                    if (_curr)
+                        _curr->_prev = tmp->_prev;
+                    _curr = tmp->_prev;
+
+                    // Send anti-msgs
+                    tmp->_ea->SendAntiMsg();
+
+                    // deleting event
+                    delete tmp->_ea;
+                    delete tmp;
+                    tmp = 0;
+                    delete ea;
+                }
+                else {
+                    Node* curr = _exec;
+                    while (curr->_prev && curr->_prev->_et == t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t)) {
+                        curr = curr->_prev;
+                    }
+                    // if curr exists (not null) and correct time, remove event from list
+                    if (curr->_prev && curr->_prev->_et == t) {
+                        Node* tmp = curr->_prev;
+
+                        curr->_prev = tmp->_prev;
+
+                        if (tmp->_prev) {
+                            tmp->_prev->_next = curr;
+                        }
+
+                        // rolling back
+                        while (_exec != tmp->_prev)
+                        {
+                            _exec->_ea->SendAntiMsg();
+                            _exec = _exec->_prev;
+                        }
+
+                        if (tmp->_prev)
+                            _exec = tmp->_prev->_prev;
+                        else
+                            _exec = 0;
+
+                        _curr = tmp->_prev;
+
+                        // Send anti-msgs
+                        tmp->_ea->SendAntiMsg();
+
+                        // deleting event
+                        delete tmp->_ea;
+                        delete tmp;
+                        tmp = 0;
+                        delete ea;
+                    }
+                    // schedule anti-msg
+                    else {
+                        Node* A = new Node(t, ea);
+                        // set new_node's pointers to curr since curr is at one event lower than larger timestamp/null
+                        A->_prev = curr->_prev;
+                        A->_next = curr;
+                        curr->_prev = A;
+
+                        if (A->_prev)
+                            A->_prev->_next = A;
+                    }
+                }
+            }
+            // _curr time equals new event time
+            else {
+                // checking head
+                if (_curr && _curr->_ea->GetEventId() == ea->GetEventId()) {
+                    Node* tmp = _curr;
+
+                    _curr = _curr->_next;
+                    if (_curr)
+                        _curr->_prev = _exec;
+
+                    if (_exec)
+                        _exec->_next = _curr;
+
+                    // deleting event
+                    delete tmp->_ea;
+                    delete ea;
+
+                    // deleting node
+                    delete tmp;
+                    tmp = 0;
+                }
+                else {
+                    Node* curr = _curr;
+                    while (curr->_next && curr->_next->_et == t && !(curr->_next->_ea->GetEventId() == ea->GetEventId() && curr->_next->_et == t)) {
+                        curr = curr->_next;
+                    }
+                    // if curr exists (not null) and correct time, remove event from list
+                    if (curr->_next && curr->_next->_et == t) {
+                        Node* tmp = curr->_next;
+
+                        curr->_next = tmp->_next;
+
+                        if (tmp->_next) {
+                            tmp->_next->_prev = curr;
+                        }
+
+                        // deleting event
+                        delete tmp->_ea;
+                        delete ea;
+                        delete tmp;
+                        tmp = 0;
+                    }
+                    // schedule anti-msg
+                    else {
+                        Node* A = new Node(t, ea);
+                        // set new_node's pointers to curr since curr is at one event lower than larger timestamp/null
+                        A->_next = curr->_next;
+                        A->_prev = curr;
+                        curr->_next = A;
+
+                        if (A->_next)
+                            A->_next->_prev = A;
                     }
                 }
             }
         }
-        
+        // if exec is null
+        else {
+            Node* A = new Node(t, ea);
+            _exec = A;
+            _exec->_next = _curr;
+            if (_curr)
+                _curr->_prev = _exec;
+        }
     }
     else { 
         // if time is less than last executed time
@@ -195,6 +464,8 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
 
                 // delete event
                 delete ea;
+                delete anti->_ea;
+                delete anti;
             }
         }
         // if time is greater than next sim-time
@@ -226,6 +497,8 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
 
                 // delete ea
                 delete ea;
+                delete anti->_ea;
+                delete anti;
             }
         }
         // inbetween next event and previous event
@@ -369,6 +642,8 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
             Node* new_node = new Node(t, ea);
             _curr = new_node;
             _curr->_prev = _exec;
+            if (_exec)
+                _exec->_next = _curr;
         }
     }
 }

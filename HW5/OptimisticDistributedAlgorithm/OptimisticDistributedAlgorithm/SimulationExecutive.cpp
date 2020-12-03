@@ -4,7 +4,6 @@
 #include <iostream>
 #include <unordered_map>
 #include <thread>
-#include "Stack.hpp"
 #include "Distribution.h"
 
 using namespace std;
@@ -27,7 +26,7 @@ public:
 		EventAction::AddToBuffer(dataBuffer, (int*)&eventId, index, eventId);
 	}
 	void Deserialize(int* dataBuffer, int& index) { 
-		unsigned int eventId;
+		unsigned int eventId = 0;
 		EventAction::TakeFromBuffer(dataBuffer, (int*)&eventId, index, eventId);
 		SetEventId(eventId);
 	}
@@ -82,7 +81,7 @@ void Send(int dest, const Time& t, EventAction* ea)
 	cout << "SEND MSG : CURR=" << CommunicationRank() << " : TO=" << dest << " : EVENT=" << ea->GetClassId() << " : T=" << t << endl; fflush(stdout);
 	this_thread::sleep_for(2s);
 #endif
-	int bufferSize = ea->GetBufferSize() + sizeof(t) / sizeof(int);
+	int bufferSize = ea->GetBufferSize() + (sizeof(t) + sizeof(unsigned int)) / sizeof(int);
 	int* dataBuffer = new int[bufferSize];
 	int index = 0;
 
@@ -103,7 +102,7 @@ void Receive(int source, int tag)
 {
 	// tag is class Id
 	EventAction* ea = EventClassMap[tag]();	// create new event action using tag == classId 
-	int bufferSize = ea->GetBufferSize() + sizeof(Time) / sizeof(int);
+	int bufferSize = ea->GetBufferSize() + (sizeof(Time) + sizeof(unsigned int))/ sizeof(int);
 	int* dataBuffer = new int[bufferSize];
 	MPI_Request request;
 
@@ -138,14 +137,14 @@ void Receive(int source, int tag)
 // Simulation Executive public Methods:
 Time GetSimulationTime() { return SimulationTime; }
 
-void ScheduleEventIn(Time deltaT, EventAction* ea, int LP)
+void ScheduleEvent(Time time, EventAction* ea, int LP)
 {
 	if (LP == CommunicationRank()) {
-		ActiveEventSet.AddEvent(deltaT + SimulationTime, ea);
+		ActiveEventSet.AddEvent(time, ea);
 	}
 	else {
 		if (EventClassMap.find(ea->GetEventClassId()) != EventClassMap.end()) {
-			Send(LP, deltaT + SimulationTime, ea);
+			Send(LP, time, ea);
 		}
 		else {
 			printf("Error Sending Undeclared Event. Please Declare Event\a\n");
@@ -156,7 +155,7 @@ void ScheduleEventIn(Time deltaT, EventAction* ea, int LP)
 
 // scheduling initial events
 void InitialScheduleEventIn(Time deltaT, EventAction* ea, int LP) {
-	ScheduleEventIn(deltaT, ea, LP);
+	ScheduleEvent(deltaT + SimulationTime, ea, LP);
 }
 
 
@@ -165,7 +164,6 @@ void RunSimulation(Time T)
 	// recieving variables
 	int tag, source;
 
-	Time tempTime;
 	while (true) {
 		// wait for events
 		do {
@@ -204,7 +202,6 @@ void RunSimulation(Time T)
 
 void InitializeSimulation()
 {
-	this_thread::sleep_for(20s);
 	SimulationTime = 0;
 
 	// initializing communication
@@ -212,6 +209,7 @@ void InitializeSimulation()
 
 	// registering null message
 	EventClassMap[AntiMsg::_EventClassID] = AntiMsg::New;
+	this_thread::sleep_for(15s);
 
 	// random seed
 	srand(PROCESS_RANK * 3);
@@ -227,49 +225,35 @@ void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor) {
 	}
 }
 
-////// ANTI MSG 
-struct AntiMsgStruct {
-	Time _t;
-	unsigned int _eventId;
-	int _LP;
-	AntiMsgStruct(unsigned int eventId, int LP, Time t) {
-		_eventId = eventId;
-		_LP = LP;
-		_t = t;
-	}
-};
-unordered_map<unsigned int, Stack<AntiMsgStruct*>> AntiMsg_Map;
 
 // Event Action's schedule event, will be used
 void EventAction::ScheduleEventIn(Time deltaT, EventAction* ea, int LP)
 {
 	// create and push new anti-msg
-	AntiMsg_Map[this->_eventId].push(new AntiMsgStruct(this->_eventId, LP, deltaT + SimulationTime));
+	_antiMsgs.push(new EventAction::AntiMsgStruct(this->_eventId, LP, deltaT + SimulationTime));
 	
 	// schedule w/sim-exec
-	ScheduleEventIn(deltaT, ea, LP);
+	ScheduleEvent(deltaT + SimulationTime, ea, LP);
 }
 
 void EventAction::SendAntiMsg()
 {
-	Stack<AntiMsgStruct*>* anti_msg_stack = &AntiMsg_Map[this->_eventId];
-	while (!anti_msg_stack->empty()) {
+	while (!_antiMsgs.empty()) {
 		// create anti msg then schedule anti-msg
-		ScheduleEventIn(anti_msg_stack->top()->_t, new AntiMsg(anti_msg_stack->top()->_eventId), anti_msg_stack->top()->_LP);
+		ScheduleEventIn(_antiMsgs.top()->_t, new AntiMsg(_antiMsgs.top()->_eventId), _antiMsgs.top()->_LP);
 
 		// remove from stack
-		delete anti_msg_stack->top();
-		anti_msg_stack->pop();
+		delete _antiMsgs.top();
+		_antiMsgs.pop();
 	}
 }
 
 // removing all anti-msgs
 EventAction::~EventAction()
 {
-	Stack<AntiMsgStruct*> * anti_msg_stack = &AntiMsg_Map[this->_eventId];
-	while (!anti_msg_stack->empty()) {
+	while (!_antiMsgs.empty()) {
 		// remove from stack
-		delete anti_msg_stack->top();
-		anti_msg_stack->pop();
+		delete _antiMsgs.top();
+		_antiMsgs.pop();
 	}
 }

@@ -150,16 +150,15 @@
     <ClCompile Include="Distribution.cpp" />
     <ClCompile Include="EventSet.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="OutputEventSet.cpp" />
     <ClCompile Include="SimulationExecutive.cpp" />
-    <ClCompile Include="Airplane.cpp" />
+    <ClCompile Include="TestHarness.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Distribution.h" />
     <ClInclude Include="EventSet.h" />
     <ClInclude Include="SimulationExecutive.h" />
-    <ClInclude Include="Airplane.hpp" />
-    <ClInclude Include="TestHarness.hpp" />
+    <ClInclude Include="Stack.hpp" />
+    <ClInclude Include="TestHarness.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

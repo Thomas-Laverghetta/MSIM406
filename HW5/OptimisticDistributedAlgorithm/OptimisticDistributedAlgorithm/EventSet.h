@@ -29,7 +29,10 @@ public:
 
     // Returns size of Event Set
     bool isEmpty() {
-        return _curr;
+        // skip anti-msgs
+        if (_curr && _curr->_ea->GetEventClassId() == 0)
+            _curr = _curr->_next;
+        return !_curr;
     }
 
     // returns event with smallest time 

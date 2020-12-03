@@ -24,13 +24,10 @@
     <ClCompile Include="Distribution.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Airplane.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="EventSet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="OutputEventSet.cpp">
+    <ClCompile Include="TestHarness.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -41,13 +38,13 @@
     <ClInclude Include="Distribution.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Airplane.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="TestHarness.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="EventSet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Stack.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TestHarness.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
