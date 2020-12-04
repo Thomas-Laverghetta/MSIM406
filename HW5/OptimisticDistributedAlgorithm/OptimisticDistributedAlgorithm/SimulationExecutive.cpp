@@ -37,7 +37,6 @@ public:
 Time SimulationTime = 0;		// simulation time
 unordered_map<unsigned int, NewFunctor> EventClassMap; // mapping of class id to new methods
 EventSet ActiveEventSet;		// active events to execute
-bool ROLLBACK = false;			// true when rollback is occuring
 
 //----------------Comm-------------------
 int PROCESS_RANK = -1;

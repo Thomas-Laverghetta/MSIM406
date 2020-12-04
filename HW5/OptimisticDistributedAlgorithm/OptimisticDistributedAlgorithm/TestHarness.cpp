@@ -6,9 +6,9 @@ void TestOptimisticSimulation()
 	RegisterEventActionClass(SimpleEA::_EventClassID, SimpleEA::New);
 
 	int p = CommunicationSize();
-	int n = 10;
-	double td_mean = 5;
-	double tw_max = 5;
+	int n = 5;
+	double td_mean = 2;
+	double tw_max = 2;
 
 	for (int i = 0; i < n; i++)
 	{
@@ -16,5 +16,5 @@ void TestOptimisticSimulation()
 		InitialScheduleEventIn(0, new SimpleEA(td_mean, p, tw_max), rand() % CommunicationSize());
 	}
 
-	RunSimulation(20);
+	RunSimulation(15);
 }

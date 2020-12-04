@@ -54,7 +54,7 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
         // search executed set
         else if (_exec && _exec->_et > t) {
             Node* curr = _exec;
-            while (curr->_prev && curr->_prev->_et > t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t)) {
+            while (curr->_prev && curr->_prev->_et >= t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t)) {
                 curr = curr->_prev;
             }
             // if curr exists (not null) and correct time, remove event from list
@@ -67,11 +67,17 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                     tmp->_prev->_next = curr;
                 }
                 
+                // number of rollbacks
+                rollbacks++;
+
                 // rolling back
                 while (_exec != tmp->_prev)
                 {
                     _exec->_ea->SendAntiMsg();
                     _exec = _exec->_prev;
+
+                    // counting number of rolled events
+                    numEventRolls++;
                 }
                 
                 if (tmp->_prev)
@@ -83,6 +89,9 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
 
                 // Send anti-msgs
                 tmp->_ea->SendAntiMsg();
+
+                // counting number of events rolled
+                numEventRolls++;
 
                 // deleting event
                 delete tmp->_ea;
@@ -102,16 +111,6 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                     A->_prev->_next = A;
             }
         }    
-        //// inbetween next event and previous event
-        //else if (_curr && _curr->_et > t && _exec && _exec->_et < t) {
-        //    Node* A = new Node(t, ea);
-        //    A->_next = _curr;
-        //    _curr->_prev = A;
-
-        //    A->_prev = _exec;
-        //    _exec->_next = A;
-        //    _exec = A;
-        //}
         // if time equals either
         else if ((_curr && _curr->_et == t) || (_exec && _exec->_et == t)) {
             if ((_curr && _curr->_et == t) && (_exec && _exec->_et == t)) {
@@ -159,6 +158,10 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                         if (_exec->_ea->GetEventId() == ea->GetEventId() && _exec->_et == t) {
                             Node* tmp = _exec;
 
+                            // increment number of rollbacks
+                            rollbacks++;
+                            numEventRolls++;
+
                             // rollback
                             if (_exec->_prev) {
                                 _exec->_prev->_next = _curr;
@@ -195,12 +198,18 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                                 if (tmp->_prev) {
                                     tmp->_prev->_next = curr;
                                 }
+                                
+                                // incrment number of rollbacks
+                                rollbacks++;
 
                                 // rolling back
                                 while (_exec != tmp->_prev)
                                 {
                                     _exec->_ea->SendAntiMsg();
                                     _exec = _exec->_prev;
+                                    
+                                    // counting number of events rolled
+                                    numEventRolls++;
                                 }
 
                                 if (tmp->_prev)
@@ -212,6 +221,9 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
 
                                 // Send anti-msgs
                                 tmp->_ea->SendAntiMsg();
+
+                                // counting number of events rolled
+                                numEventRolls++;
 
                                 // deleting event
                                 delete tmp->_ea;
@@ -253,6 +265,12 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
 
                     // Send anti-msgs
                     tmp->_ea->SendAntiMsg();
+                    
+                    // counting number of rollbacks
+                    rollbacks++;
+
+                    // counting number of events rolled
+                    numEventRolls++;
 
                     // deleting event
                     delete tmp->_ea;
@@ -280,6 +298,9 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                         {
                             _exec->_ea->SendAntiMsg();
                             _exec = _exec->_prev;
+
+                            // counting number of events rolled
+                            numEventRolls++;
                         }
 
                         if (tmp->_prev)
@@ -291,6 +312,12 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
 
                         // Send anti-msgs
                         tmp->_ea->SendAntiMsg();
+
+                        // counting number of events rolled
+                        numEventRolls++;
+
+                        // counting number of rollbacks
+                        rollbacks++;
 
                         // deleting event
                         delete tmp->_ea;
@@ -389,7 +416,7 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
             Node* curr = _exec;
             // while previous node is exist and less than t and not equal too anti-msg on that node
             while (curr->_prev &&
-                curr->_prev->_et > t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t))
+                curr->_prev->_et >= t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t))
             {
                 curr = curr->_prev;
             }
@@ -409,7 +436,13 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                     // sending anti-msgs
                     _exec->_ea->SendAntiMsg();
                     _exec = _exec->_prev;
+
+                    // counting number of events rolled
+                    numEventRolls++;
                 }
+
+                // counting number of rollbacks
+                rollbacks++;
 
                 // setting executed 
                 _exec = new_event->_prev;
@@ -467,16 +500,6 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 anti = 0;
             }
         }
-        //// inbetween next event and previous event, schedule inbetween
-        //else if (_curr && _curr->_et > t && _exec && _exec->_et < t) {
-        //    Node* new_event = new Node(t, ea);
-        //    new_event->_next = _curr;
-        //    _curr->_prev = new_event;
-        //    _curr = new_event;
-
-        //    new_event->_prev = _exec;
-        //    _exec->_next = new_event;
-        //}
         // if time equals either
         else if ((_curr && _curr->_et == t) || (_exec && _exec->_et == t)) {
             if ((_curr && _curr->_et == t) && (_exec && _exec->_et == t)) {
@@ -578,7 +601,13 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                         // sending anti-msgs
                         _exec->_ea->SendAntiMsg();
                         _exec = _exec->_prev;
+
+                        // counting number of events rolled
+                        numEventRolls++;
                     }
+
+                    // counting number of rollbacks
+                    rollbacks++;
 
                     // setting executed 
                     _exec = new_event->_prev;
