@@ -21,8 +21,8 @@ private:
         Event(const Time& t, EventAction * ea);
     };
   
-    Event* _curr;            // smallest timestamped scheduled event
-    Event* _exec;            // last event executed
+    Event* _nextSchEvent;            // smallest timestamped scheduled event
+    Event* _prevExecEvent;            // last event executed
     unsigned int rollbacks; //  Number of rollbacks occured
     unsigned int numEventRolls;// number of event that rolled backed
 public:
@@ -32,15 +32,15 @@ public:
     // Returns size of Event Set
     bool isEmpty() {
         // skip anti-msgs
-        Event* tmp = _curr;
+        Event* tmp = _nextSchEvent;
         while (tmp && tmp->_ea->GetEventClassId() == ANTI_MSG) {
             tmp = tmp->_next;
         }
         // if tmp exists, then no anti-msg at location (found executable event)
         if (tmp) {
             // move curr to tmp and move exec to pre
-            _curr = tmp;
-            _exec = tmp->_prev;
+            _nextSchEvent = tmp;
+            _prevExecEvent = tmp->_prev;
             return false;
         }
         else
@@ -57,22 +57,22 @@ public:
     inline EventSet(){
         rollbacks = 0;
         numEventRolls = 0;
-        _curr = 0;
-        _exec = 0;
+        _nextSchEvent = 0;
+        _prevExecEvent = 0;
     }
 
     ~EventSet() {
         Event* tmp;
-        while (_exec) {
-            tmp = _exec;
-            _exec = _exec->_prev;
+        while (_prevExecEvent) {
+            tmp = _prevExecEvent;
+            _prevExecEvent = _prevExecEvent->_prev;
             delete tmp->_ea;
             delete tmp;
             tmp = 0;
         }
-        while (_curr) {
-            tmp = _curr;
-            _curr = _curr->_next;
+        while (_nextSchEvent) {
+            tmp = _nextSchEvent;
+            _nextSchEvent = _nextSchEvent->_next;
             delete tmp->_ea;
             delete tmp;
             tmp = 0;
