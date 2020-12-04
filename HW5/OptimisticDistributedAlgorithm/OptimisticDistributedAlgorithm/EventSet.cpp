@@ -54,7 +54,7 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
         // search executed set
         else if (_exec && _exec->_et > t) {
             Node* curr = _exec;
-            while (curr->_prev && curr->_prev->_et >= t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t)) {
+            while (curr->_prev && curr->_prev->_et > t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t)) {
                 curr = curr->_prev;
             }
             // if curr exists (not null) and correct time, remove event from list
@@ -102,16 +102,16 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                     A->_prev->_next = A;
             }
         }    
-        // inbetween next event and previous event
-        else if (_curr && _curr->_et > t && _exec && _exec->_et < t) {
-            Node* A = new Node(t, ea);
-            A->_next = _curr;
-            _curr->_prev = A;
+        //// inbetween next event and previous event
+        //else if (_curr && _curr->_et > t && _exec && _exec->_et < t) {
+        //    Node* A = new Node(t, ea);
+        //    A->_next = _curr;
+        //    _curr->_prev = A;
 
-            A->_prev = _exec;
-            _exec->_next = A;
-            _exec = A;
-        }
+        //    A->_prev = _exec;
+        //    _exec->_next = A;
+        //    _exec = A;
+        //}
         // if time equals either
         else if ((_curr && _curr->_et == t) || (_exec && _exec->_et == t)) {
             if ((_curr && _curr->_et == t) && (_exec && _exec->_et == t)) {
@@ -136,7 +136,7 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 }
                 else {
                     Node* curr = _curr;
-                    while (curr->_next && curr->_next->_et == t && !(curr->_next->_ea->GetEventId() == ea->GetEventId() && curr->_next->_et == t)) {
+                    while (curr->_next && curr->_next->_et == t && curr->_next->_ea->GetEventId() != ea->GetEventId()) {
                         curr = curr->_next;
                     }
                     // if curr exists (not null) and correct time, remove event from list
@@ -183,7 +183,7 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                         }
                         else {
                             curr = _exec;
-                            while (curr->_prev && curr->_prev->_et == t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t)) {
+                            while (curr->_prev && curr->_prev->_et == t && curr->_prev->_ea->GetEventId() != ea->GetEventId()) {
                                 curr = curr->_prev;
                             }
                             // if curr exists (not null) and correct time, remove event from list
@@ -367,13 +367,18 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 }
             }
         }
-        // if exec is null
+        // if exec is null or exec->t >
         else {
             Node* A = new Node(t, ea);
-            _exec = A;
-            _exec->_next = _curr;
+            A->_next = _curr;
+            A->_prev = _exec;
+
             if (_curr)
-                _curr->_prev = _exec;
+                _curr->_prev = A;
+            if (_exec)
+                _exec->_next = A;
+
+            _exec = A;
         }
     }
     // not a anti-msg - real event
@@ -384,7 +389,7 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
             Node* curr = _exec;
             // while previous node is exist and less than t and not equal too anti-msg on that node
             while (curr->_prev &&
-                curr->_prev->_et < t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t))
+                curr->_prev->_et > t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t))
             {
                 curr = curr->_prev;
             }
@@ -462,16 +467,16 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 anti = 0;
             }
         }
-        // inbetween next event and previous event, schedule inbetween
-        else if (_curr && _curr->_et > t && _exec && _exec->_et < t) {
-            Node* new_event = new Node(t, ea);
-            new_event->_next = _curr;
-            _curr->_prev = new_event;
-            _curr = new_event;
+        //// inbetween next event and previous event, schedule inbetween
+        //else if (_curr && _curr->_et > t && _exec && _exec->_et < t) {
+        //    Node* new_event = new Node(t, ea);
+        //    new_event->_next = _curr;
+        //    _curr->_prev = new_event;
+        //    _curr = new_event;
 
-            new_event->_prev = _exec;
-            _exec->_next = new_event;
-        }
+        //    new_event->_prev = _exec;
+        //    _exec->_next = new_event;
+        //}
         // if time equals either
         else if ((_curr && _curr->_et == t) || (_exec && _exec->_et == t)) {
             if ((_curr && _curr->_et == t) && (_exec && _exec->_et == t)) {
@@ -617,13 +622,18 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 }
             }
         }
-        // if curr equals null
+        // if curr is either null or curr->t > t while t > exec->t
         else {
-            Node* new_node = new Node(t, ea);
-            _curr = new_node;
-            _curr->_prev = _exec;
+            Node* new_event = new Node(t, ea);
+            new_event->_next = _curr;
+            new_event->_prev = _exec;
+
+            if (_curr)
+                _curr->_prev = new_event;
             if (_exec)
-                _exec->_next = _curr;
+                _exec->_next = new_event;
+
+            _curr = new_event;
         }
     }
 }

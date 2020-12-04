@@ -36,10 +36,10 @@ public:
     }
 
     // returns event with smallest time 
-    inline EventAction * GetEventAction();
+    EventAction * GetEventAction();
 
     // returns time with smallest time stamp and deletes event from set
-    inline Time GetEventTime();
+    Time GetEventTime();
 
     // Defualt constructor
     inline EventSet(){
