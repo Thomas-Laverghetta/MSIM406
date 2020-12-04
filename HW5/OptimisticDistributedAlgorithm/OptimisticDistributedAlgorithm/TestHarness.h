@@ -44,10 +44,7 @@ public:
 
 	void Execute()
 	{
-		if (CommunicationRank() == 0)
-			Sleep((unsigned long)(Uniform(0.0f,_tw_max).GetRV() * 1e3));
-		else
-			Sleep((unsigned long)(Uniform(0.0f, _tw_max/2.0f).GetRV() * 1e3));
+		Sleep((unsigned long)(Uniform(0.0f, _tw_max/(((float)CommunicationRank() + 1))).GetRV() * 1e3));
 		ScheduleEventIn(_td->GetRV(), new SimpleEA(_td_mean, _p, _tw_max), rand() % CommunicationSize());
 		printf("PROC=%i | EVENT_ID=%i | TIME=%f\n", CommunicationRank(), this->GetEventId(), GetSimulationTime()); fflush(stdout);
 	}
