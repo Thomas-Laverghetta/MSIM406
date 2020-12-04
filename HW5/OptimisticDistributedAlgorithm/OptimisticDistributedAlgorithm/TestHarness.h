@@ -44,9 +44,9 @@ public:
 
 	void Execute()
 	{
-		//Sleep((unsigned long)(Uniform(0.0f,_tw_max).GetRV() * 1e3));
-		ScheduleEventIn(Uniform(-10, 10).GetRV(), new SimpleEA(_td_mean, _p, _tw_max), rand() % CommunicationSize());
-		printf("CURR=%i | EVENT_ID=%i | TIME=%f\n", CommunicationRank(), this->GetEventId(), GetSimulationTime());
+		Sleep((unsigned long)(Uniform(0.0f,_tw_max).GetRV() * 1e3));
+		ScheduleEventIn(_td->GetRV(), new SimpleEA(_td_mean, _p, _tw_max), rand() % CommunicationSize());
+		printf("CURR=%i | EVENT_ID=%i | TIME=%f\n", CommunicationRank(), this->GetEventId(), GetSimulationTime()); fflush(stdout);
 	}
 
 	const int GetBufferSize() { return (sizeof(_td_mean) + sizeof(_p) + sizeof(_tw_max))/sizeof(int); }
@@ -61,12 +61,17 @@ public:
 	void Deserialize(int* databuffer, int& index) 
 	{
 		TakeFromBuffer(databuffer, (int*)&_td_mean, index, _td_mean);
+		_td = new Exponential(_td_mean);
 		TakeFromBuffer(databuffer, (int*)&_p, index, _p);
 		TakeFromBuffer(databuffer, (int*)&_tw_max, index, _tw_max);
 	}
 
 	static EventAction* New() { return new SimpleEA; }
 
+	~SimpleEA() {
+		delete _td;
+		_td = 0;
+	}
 private:
 	double _td_mean;
 	Distribution* _td;

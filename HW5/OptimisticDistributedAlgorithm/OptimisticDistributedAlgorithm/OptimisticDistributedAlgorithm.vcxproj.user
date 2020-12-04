@@ -2,12 +2,12 @@
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerCommand>$(I_MPI_ROOT)\intel64\bin\mpiexec.exe</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>-localonly -n 1 "$(TargetPath)"</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-localonly -n 2 "$(TargetPath)"</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerCommand>$(I_MPI_ROOT)\intel64\bin\mpiexec.exe</LocalDebuggerCommand>
-    <LocalDebuggerCommandArguments>-localonly -n 1 "$(TargetPath)"</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-localonly -n 2 "$(TargetPath)"</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
 </Project>

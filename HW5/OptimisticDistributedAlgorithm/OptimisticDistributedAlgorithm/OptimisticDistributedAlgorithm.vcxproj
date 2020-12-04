@@ -156,6 +156,7 @@
   <ItemGroup>
     <ClInclude Include="Distribution.h" />
     <ClInclude Include="EventSet.h" />
+    <ClInclude Include="FIFO.h" />
     <ClInclude Include="SimulationExecutive.h" />
     <ClInclude Include="Stack.hpp" />
     <ClInclude Include="TestHarness.h" />

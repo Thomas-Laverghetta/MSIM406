@@ -209,7 +209,7 @@ void InitializeSimulation()
 
 	// registering null message
 	EventClassMap[AntiMsg::_EventClassID] = AntiMsg::New;
-	this_thread::sleep_for(15s);
+	//this_thread::sleep_for(15s);
 
 	// random seed
 	srand(PROCESS_RANK * 3);
@@ -240,7 +240,7 @@ void EventAction::SendAntiMsg()
 {
 	while (!_antiMsgs.empty()) {
 		// create anti msg then schedule anti-msg
-		ScheduleEventIn(_antiMsgs.top()->_t, new AntiMsg(_antiMsgs.top()->_eventId), _antiMsgs.top()->_LP);
+		ScheduleEvent(_antiMsgs.top()->_t + SimulationTime, new AntiMsg(_antiMsgs.top()->_eventId), _antiMsgs.top()->_LP);
 
 		// remove from stack
 		delete _antiMsgs.top();
