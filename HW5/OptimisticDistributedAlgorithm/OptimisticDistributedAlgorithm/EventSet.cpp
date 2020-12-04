@@ -18,75 +18,68 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
     
     // testing if ea is anti-msg (event class id == 0)
     if (ea->GetEventClassId() == 0) {
+        // 
         if (_curr && _curr->_et < t) {
-            if (_curr && _curr->_ea->GetEventId() == ea->GetEventId()) {
-                Node* tmp = _curr;
+            Node * curr = _curr;
+            while (curr->_next && curr->_next->_et <= t && !(curr->_next->_ea->GetEventId() == ea->GetEventId() && curr->_next->_et == t)) {
+                curr = curr->_next;
+            }
+            // if curr exists (not null) and correct time, remove event from list
+            if (curr->_next && curr->_next->_et == t) {
+                Node* tmp = curr->_next;
 
-                _curr = _curr->_next;
-                if (_curr)
-                    _curr->_prev = _exec;
+                curr->_next = tmp->_next;
 
-                if (_exec)
-                    _exec->_next = _curr;
+                if (tmp->_next) {
+                    tmp->_next->_prev = curr;
+                }
 
                 // deleting event
                 delete tmp->_ea;
                 delete ea;
-
-                // deleting node
                 delete tmp;
                 tmp = 0;
             }
+            // schedule anti-msg
             else {
-                Node * curr = _curr;
-                while (curr->_next && curr->_next->_et <= t && !(curr->_next->_ea->GetEventId() == ea->GetEventId() && curr->_next->_et == t)) {
-                    curr = curr->_next;
-                }
-                // if curr exists (not null) and correct time, remove event from list
-                if (curr->_next && curr->_next->_et == t) {
-                    Node* tmp = curr->_next;
+                Node* A = new Node(t, ea);
+                // set new_node's pointers to curr since curr is at one event lower than larger timestamp/null
+                A->_next = curr->_next;
+                A->_prev = curr;
+                curr->_next = A;
 
-                    curr->_next = tmp->_next;
-
-                    if (tmp->_next) {
-                        tmp->_next->_prev = curr;
-                    }
-
-                    // deleting event
-                    delete tmp->_ea;
-                    delete ea;
-                    delete tmp;
-                    tmp = 0;
-                }
-                // schedule anti-msg
-                else {
-                    Node* A = new Node(t, ea);
-                    // set new_node's pointers to curr since curr is at one event lower than larger timestamp/null
-                    A->_next = curr->_next;
-                    A->_prev = curr;
-                    curr->_next = A;
-
-                    if (A->_next)
-                        A->_next->_prev = A;
-                }
+                if (A->_next)
+                    A->_next->_prev = A;
             }
         }
         // search executed set
         else if (_exec && _exec->_et > t) {
-            if (_exec->_ea->GetEventId() == ea->GetEventId() && _exec->_et == t) {
-                Node* tmp = _exec;
+            Node* curr = _exec;
+            while (curr->_prev && curr->_prev->_et >= t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t)) {
+                curr = curr->_prev;
+            }
+            // if curr exists (not null) and correct time, remove event from list
+            if (curr->_prev && curr->_prev->_et == t) {
+                Node* tmp = curr->_prev;
 
-                // rollback
-                if (_exec->_prev) {
-                    _exec->_prev->_next = _curr;
-                    _exec = _exec->_prev->_prev;
+                curr->_prev = tmp->_prev;
+                
+                if (tmp->_prev) {
+                    tmp->_prev->_next = curr;
                 }
-                else {
+                
+                // rolling back
+                while (_exec != tmp->_prev)
+                {
+                    _exec->_ea->SendAntiMsg();
+                    _exec = _exec->_prev;
+                }
+                
+                if (tmp->_prev)
+                    _exec = tmp->_prev->_prev;
+                else
                     _exec = 0;
-                }
 
-                if (_curr)
-                    _curr->_prev = tmp->_prev;
                 _curr = tmp->_prev;
 
                 // Send anti-msgs
@@ -98,55 +91,16 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 tmp = 0;
                 delete ea;
             }
+            // schedule anti-msg
             else {
-                Node* curr = _exec;
-                while (curr->_prev && curr->_prev->_et >= t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t)) {
-                    curr = curr->_prev;
-                }
-                // if curr exists (not null) and correct time, remove event from list
-                if (curr->_prev && curr->_prev->_et == t) {
-                    Node* tmp = curr->_prev;
+                Node* A = new Node(t, ea);
+                // set new_node's pointers to curr since curr is at one event lower than larger timestamp/null
+                A->_prev = curr->_prev;
+                A->_next = curr;
+                curr->_prev = A;
 
-                    curr->_prev = tmp->_prev;
-                    
-                    if (tmp->_prev) {
-                        tmp->_prev->_next = curr;
-                    }
-                    
-                    // rolling back
-                    while (_exec != tmp->_prev)
-                    {
-                        _exec->_ea->SendAntiMsg();
-                        _exec = _exec->_prev;
-                    }
-                    
-                    if (tmp->_prev)
-                        _exec = tmp->_prev->_prev;
-                    else
-                        _exec = 0;
-
-                    _curr = tmp->_prev;
-
-                    // Send anti-msgs
-                    tmp->_ea->SendAntiMsg();
-
-                    // deleting event
-                    delete tmp->_ea;
-                    delete tmp;
-                    tmp = 0;
-                    delete ea;
-                }
-                // schedule anti-msg
-                else {
-                    Node* A = new Node(t, ea);
-                    // set new_node's pointers to curr since curr is at one event lower than larger timestamp/null
-                    A->_prev = curr->_prev;
-                    A->_next = curr;
-                    curr->_prev = A;
-
-                    if (A->_prev)
-                        A->_prev->_next = A;
-                }
+                if (A->_prev)
+                    A->_prev->_next = A;
             }
         }    
         // inbetween next event and previous event
@@ -421,40 +375,44 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 _curr->_prev = _exec;
         }
     }
+    // not a anti-msg - real event
     else { 
         // if time is less than last executed time
         if (_exec && _exec->_et > t) {
             // Locate the node before the point of insertion 
             Node* curr = _exec;
+            // while previous node is exist and less than t and not equal too anti-msg on that node
             while (curr->_prev &&
                 curr->_prev->_et < t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t))
             {
                 curr = curr->_prev;
             }
+            // if not anti-msg, schedule event
             if (!(curr->_prev && curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t)) {
-                Node* new_node = new Node(t, ea);
-                new_node->_next = curr;
-                new_node->_prev = curr->_prev;
+                Node* new_event = new Node(t, ea);
+                new_event->_next = curr;
+                new_event->_prev = curr->_prev;
+                curr->_prev = new_event;
 
-                if (curr->_prev)
-                    curr->_prev->_next = new_node;
-
-                curr->_prev = new_node;
-
-                // rollback
-                Node* tmp = _exec;
-                while (tmp != new_node) {
-                    // sending anti-msgs
-                    tmp->_ea->SendAntiMsg();
-                    tmp = tmp->_next;
+                if (new_event->_prev) {
+                    new_event->_prev->_next = new_event;
                 }
 
+                // rollback
+                while (_exec != new_event) {
+                    // sending anti-msgs
+                    _exec->_ea->SendAntiMsg();
+                    _exec = _exec->_prev;
+                }
+
+                // setting executed 
+                _exec = new_event->_prev;
+
                 // setting curr to new node
-                _curr = new_node;
-                _exec = _curr->_prev;
+                _curr = new_event;
 
             }
-            // anti-msg found
+            // anti-msg found, remove anti-msg and delete ea
             else {
                 // remove anti-msg and do not schedule new msg
                 Node* anti = curr->_prev;
@@ -466,6 +424,7 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 delete ea;
                 delete anti->_ea;
                 delete anti;
+                anti = 0;
             }
         }
         // if time is greater than next sim-time
@@ -478,14 +437,14 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 curr = curr->_next;
             }
             if (!(curr->_next && curr->_next->_ea->GetEventId() == ea->GetEventId() && curr->_next->_et == t)) {
-                Node* new_node = new Node(t, ea);
-                new_node->_next = curr->_next;
-                new_node->_prev = curr;
+                Node* new_event = new Node(t, ea);
+                new_event->_next = curr->_next;
+                new_event->_prev = curr;
                 
                 if (curr->_next)
-                    curr->_next->_prev = new_node;
+                    curr->_next->_prev = new_event;
 
-                curr->_next = new_node;
+                curr->_next = new_event;
             }
             // anti-msg found
             else {
@@ -499,24 +458,27 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 delete ea;
                 delete anti->_ea;
                 delete anti;
+                anti = 0;
             }
         }
-        // inbetween next event and previous event
+        // inbetween next event and previous event, schedule inbetween
         else if (_curr && _curr->_et > t && _exec && _exec->_et < t) {
-            Node* new_node = new Node(t, ea);
-            new_node->_next = _curr;
-            _curr->_prev = new_node;
-            _curr = new_node;
+            Node* new_event = new Node(t, ea);
+            new_event->_next = _curr;
+            _curr->_prev = new_event;
+            _curr = new_event;
 
-            new_node->_prev = _exec;
-            _exec->_next = new_node;            
+            new_event->_prev = _exec;
+            _exec->_next = new_event;
         }
         // if time equals either
         else if ((_curr && _curr->_et == t) || (_exec && _exec->_et == t)) {
             if ((_curr && _curr->_et == t) && (_exec && _exec->_et == t)) {
+                // searching for anti-msgs in executed set
                 Node* curr = _exec;
+                // while a previous event exists w/same timestamp, check for anti-msgs
                 while (curr->_prev &&
-                    curr->_prev->_et < t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t))
+                    curr->_prev->_et == t && curr->_prev->_ea->GetEventId() != ea->GetEventId())
                 {
                     curr = curr->_prev;
                 }
@@ -530,25 +492,30 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
 
                     // delete event
                     delete ea;
+                    delete anti->_ea;
+                    delete anti;
+                    anti = 0;
                 }
                 // search scheduled events
                 else {
                     curr = _curr;
+
+                    // while next event w/same timestamp, check for anti-msgs
                     while (curr->_next &&
-                        curr->_next->_et == t && !(curr->_next->_ea->GetEventId() == ea->GetEventId() && curr->_next->_et == t))
+                        curr->_next->_et == t && curr->_next->_ea->GetEventId() != ea->GetEventId())
                     {
                         curr = curr->_next;
                     }
                     // no anti-msg found, schedule 
                     if (!(curr->_next && curr->_next->_ea->GetEventId() == ea->GetEventId() && curr->_next->_et == t)) {
-                        Node* new_node = new Node(t, ea);
-                        new_node->_next = curr->_next;
-                        new_node->_prev = curr;
+                        Node* new_event = new Node(t, ea);
+                        new_event->_next = curr->_next;
+                        new_event->_prev = curr;
 
                         if (curr->_next)
-                            curr->_next->_prev = new_node;
+                            curr->_next->_prev = new_event;
 
-                        curr->_next = new_node;
+                        curr->_next = new_event;
                     }
                     // anti-msg found
                     else {
@@ -560,13 +527,18 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
 
                         // delete ea
                         delete ea;
+                        delete anti->_ea;
+                        delete anti;
+                        anti = 0;
                     }
                 }
             }
             else if (_exec && _exec->_et == t) {
+                // searching for anti-msgs in executed set
                 Node* curr = _exec;
+                // while a previous event exists w/same timestamp, check for anti-msgs
                 while (curr->_prev &&
-                    curr->_prev->_et < t && !(curr->_prev->_ea->GetEventId() == ea->GetEventId() && curr->_prev->_et == t))
+                    curr->_prev->_et == t && curr->_prev->_ea->GetEventId() != ea->GetEventId())
                 {
                     curr = curr->_prev;
                 }
@@ -580,29 +552,33 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
 
                     // delete event
                     delete ea;
+                    delete anti->_ea;
+                    delete anti;
+                    anti = 0;
                 }
                 // else, rollback 
                 else {
-                    Node* new_node = new Node(t, ea);
-                    new_node->_next = curr;
-                    new_node->_prev = curr->_prev;
+                    Node* new_event = new Node(t, ea);
+                    new_event->_next = curr;
+                    new_event->_prev = curr->_prev;
+                    curr->_prev = new_event;
 
-                    if (curr->_prev)
-                        curr->_prev->_next = new_node;
-
-                    curr->_prev = new_node;
-
-                    // rollback
-                    Node* tmp = _exec;
-                    while (tmp != new_node) {
-                        // sending anti-msgs
-                        tmp->_ea->SendAntiMsg();
-                        tmp = tmp->_next;
+                    if (new_event->_prev) {
+                        new_event->_prev->_next = new_event;
                     }
 
+                    // rollback
+                    while (_exec != new_event) {
+                        // sending anti-msgs
+                        _exec->_ea->SendAntiMsg();
+                        _exec = _exec->_prev;
+                    }
+
+                    // setting executed 
+                    _exec = new_event->_prev;
+
                     // setting curr to new node
-                    _curr = new_node;
-                    _exec = _curr->_prev;
+                    _curr = new_event;
                 }
             }
             // _curr time equals new event time
@@ -610,19 +586,19 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 // Locate the node before the point of insertion 
                 Node* curr = _curr;
                 while (curr->_next &&
-                    curr->_next->_et == t && !(curr->_next->_ea->GetEventId() == ea->GetEventId() && curr->_next->_et == t))
+                    curr->_next->_et == t && curr->_next->_ea->GetEventId() != ea->GetEventId())
                 {
                     curr = curr->_next;
                 }
                 if (!(curr->_next && curr->_next->_ea->GetEventId() == ea->GetEventId() && curr->_next->_et == t)) {
-                    Node* new_node = new Node(t, ea);
-                    new_node->_next = curr->_next;
-                    new_node->_prev = curr;
+                    Node* new_event = new Node(t, ea);
+                    new_event->_next = curr->_next;
+                    new_event->_prev = curr;
 
                     if (curr->_next)
-                        curr->_next->_prev = new_node;
+                        curr->_next->_prev = new_event;
 
-                    curr->_next = new_node;
+                    curr->_next = new_event;
                 }
                 // anti-msg found
                 else {
@@ -634,6 +610,9 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
 
                     // delete ea
                     delete ea;
+                    delete anti->_ea;
+                    delete anti;
+                    anti = 0;
                 }
             }
         }
