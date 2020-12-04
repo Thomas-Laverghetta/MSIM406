@@ -175,7 +175,6 @@ void RunSimulation(Time T)
 		if (SimulationTime > T) {
 			break;
 		}
-		
 #ifdef DEBUG
 			cout << "SIM TIME=" << SimulationTime << " : CURR=" << PROCESS_RANK << endl; fflush(stdout);
 			this_thread::sleep_for(1s);

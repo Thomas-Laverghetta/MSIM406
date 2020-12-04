@@ -8,7 +8,7 @@
 // defining time
 typedef double Time;
 #define TIME_MAX DBL_MAX
-#define ANTI_MSG 0
+
 
 // defining event action
 class EventAction {

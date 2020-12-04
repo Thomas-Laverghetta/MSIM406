@@ -2,7 +2,7 @@
 #define EVENTSET_H
 
 #include "SimulationExecutive.h"
-
+#define ANTI_MSG 0
 /*
     This implementation will use a sorted linked list
 */
