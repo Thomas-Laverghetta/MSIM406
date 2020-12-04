@@ -30,16 +30,16 @@ public:
     // Returns size of Event Set
     bool isEmpty() {
         // skip anti-msgs
-        if (_curr && _curr->_ea->GetEventClassId() == 0)
+        if (_curr && _curr->_ea->GetEventClassId() == ANTI_MSG)
             _curr = _curr->_next;
         return !_curr;
     }
 
     // returns event with smallest time 
-    EventAction * GetEventAction();
+    inline EventAction * GetEventAction();
 
     // returns time with smallest time stamp and deletes event from set
-    Time GetEventTime();
+    inline Time GetEventTime();
 
     // Defualt constructor
     inline EventSet(){
