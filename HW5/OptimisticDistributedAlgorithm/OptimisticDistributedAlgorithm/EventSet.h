@@ -10,19 +10,19 @@ class EventSet
 {
 private:
     // Event Set data
-    class Node{
+    class Event{
     public:
-        Node * _next;
-        Node*   _prev;
+        Event * _next;
+        Event*   _prev;
         EventAction * _ea;
         Time _et;
 
-        Node();
-        Node(const Time& t, EventAction * ea);
+        Event();
+        Event(const Time& t, EventAction * ea);
     };
   
-    Node* _curr;            // smallest timestamped scheduled event
-    Node* _exec;            // last event executed
+    Event* _curr;            // smallest timestamped scheduled event
+    Event* _exec;            // last event executed
     unsigned int rollbacks; //  Number of rollbacks occured
     unsigned int numEventRolls;// number of event that rolled backed
 public:
@@ -32,7 +32,7 @@ public:
     // Returns size of Event Set
     bool isEmpty() {
         // skip anti-msgs
-        Node* tmp = _curr;
+        Event* tmp = _curr;
         while (tmp && tmp->_ea->GetEventClassId() == ANTI_MSG) {
             tmp = tmp->_next;
         }
@@ -41,10 +41,10 @@ public:
             // move curr to tmp and move exec to pre
             _curr = tmp;
             _exec = tmp->_prev;
-            return true;
+            return false;
         }
         else
-            return false;
+            return true;
     }
 
     // returns event with smallest time 
@@ -62,7 +62,7 @@ public:
     }
 
     ~EventSet() {
-        Node* tmp;
+        Event* tmp;
         while (_exec) {
             tmp = _exec;
             _exec = _exec->_prev;
