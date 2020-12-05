@@ -32,15 +32,15 @@ public:
     // Returns size of Event Set
     bool isEmpty() {
         // skip anti-msgs
-        Event* tmp = _nextSchEvent;
-        while (tmp && tmp->_ea->GetEventClassId() == ANTI_MSG) {
-            tmp = tmp->_next;
+        Event* probe = _nextSchEvent;
+        while (probe && probe->_ea->GetEventClassId() == ANTI_MSG) {
+            probe = probe->_next;
         }
         // if tmp exists, then no anti-msg at location (found executable event)
-        if (tmp) {
+        if (probe) {
             // move curr to tmp and move exec to pre
-            _nextSchEvent = tmp;
-            _prevExecEvent = tmp->_prev;
+            _nextSchEvent = probe;
+            _prevExecEvent = probe->_prev;
             return false;
         }
         else

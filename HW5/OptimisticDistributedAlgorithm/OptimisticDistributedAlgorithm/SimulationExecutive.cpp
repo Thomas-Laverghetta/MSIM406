@@ -238,7 +238,7 @@ void EventAction::SendAntiMsg()
 {
 	while (!_antiMsgs.empty()) {
 		// create anti msg then schedule anti-msg
-		ScheduleEvent(_antiMsgs.top()->_t + SimulationTime, new AntiMsg(_antiMsgs.top()->_eventId), _antiMsgs.top()->_LP);
+		ScheduleEvent(_antiMsgs.top()->_t, new AntiMsg(_antiMsgs.top()->_eventId), _antiMsgs.top()->_LP);
 
 		// remove from stack
 		delete _antiMsgs.top();

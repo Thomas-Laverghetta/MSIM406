@@ -133,11 +133,12 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                 tmp = 0;
             }
             else {
+                // short circuiting for while and if statement if next-scheduled event does not exist
                 Event* curr;
                 if (_nextSchEvent)
-                    curr = _nextSchEvent;
+                    curr = _nextSchEvent;   // if next scheduled event exists, then search scheduled list
                 else
-                    curr = _prevExecEvent;
+                    curr = _prevExecEvent;  // else (no next scheduled event), skip while and if below (curr->next == null since scheduled event is null)
 
                 while (curr->_next && curr->_next->_et == t && curr->_next->_ea->GetEventId() != ea->GetEventId()) {
                     curr = curr->_next;
@@ -189,10 +190,11 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
                         delete ea;
                     }
                     else {
+                        // short circuiting
                         if (_prevExecEvent)
-                            curr = _prevExecEvent;
+                            curr = _prevExecEvent;  // if previous event exist, then search events previously executed
                         else
-                            curr = _nextSchEvent;
+                            curr = _nextSchEvent;   // else (no previous events), then skip while and if (curr -> pre == null since previous event is null)
 
                         while (curr->_prev && curr->_prev->_et == t && curr->_prev->_ea->GetEventId() != ea->GetEventId()) {
                             curr = curr->_prev;

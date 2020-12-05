@@ -1,19 +1,28 @@
 #include "TestHarness.h"
+#include <string>
 
+ofstream SimpleEA::outputFile;
+double SimpleEA::td_mean = 1.5;
+double SimpleEA::tw_max = 1;
+int n = 5;
+
+Distribution* SimpleEA::td = 0;
+Distribution* SimpleEA::tw = 0;
 void TestOptimisticSimulation()
 {
 	InitializeSimulation();
 	RegisterEventActionClass(SimpleEA::_EventClassID, SimpleEA::New);
 
 	int p = CommunicationSize();
-	int n = 5;
-	double td_mean = 2;
-	double tw_max = 5;
+
+	SimpleEA::td = new Exponential(SimpleEA::td_mean);
+	SimpleEA::tw = new Uniform(0.0f, SimpleEA::tw_max / (((float)CommunicationRank() + 1)));
+
+	SimpleEA::outputFile = ofstream("process_" + to_string(CommunicationRank()) + ".csv");
 
 	for (int i = 0; i < n; i++)
 	{
-		printf("Sending out initial events ...\n"); 
-		InitialScheduleEventIn(0, new SimpleEA(td_mean, p, tw_max), rand() % CommunicationSize());
+		InitialScheduleEventIn(0, new SimpleEA, rand() % CommunicationSize());
 	}
 
 	RunSimulation(10);
