@@ -629,7 +629,7 @@ void RunSimulation(Time T)
 		eventsExeuted++;
 
 		// every 4-events executed, run GVT
-		if (PROCESS_RANK == 0 && GVT_init && eventsExeuted == 5 && RedRecvCounter == GlobalRedCounter[PROCESS_RANK]) {
+		if (PROCESS_RANK == 0 && GVT_init && eventsExeuted >= 5 && RedRecvCounter == GlobalRedCounter[PROCESS_RANK]) {
 			printf("INIT GVT | TIME=%f\n", SimulationTime); fflush(stdout);
 
 			GVT_init = false;

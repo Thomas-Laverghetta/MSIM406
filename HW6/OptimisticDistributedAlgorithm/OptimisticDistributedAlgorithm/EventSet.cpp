@@ -493,6 +493,9 @@ void EventSet::GVT_removal(const Time& GVT)
     while (curr && curr->_et > GVT)
         curr = curr->_prev;
     
+    if (curr && curr->_next)
+        curr->_next->_prev = 0;
+
     // while curr exists, remove all previous events
     while (curr) {
         Event* tmp = curr;
