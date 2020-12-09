@@ -2,7 +2,7 @@
 #define EVENTSET_H
 
 #include "SimulationExecutive.h"
-
+#define ANTI_MSG 0
 /*
     This implementation will use a sorted linked list
 */
@@ -10,64 +10,78 @@ class EventSet
 {
 private:
     // Event Set data
-    class Node{
+    class Event {
     public:
-        Node * m_next;
-        EventAction * m_ea;
-        Time m_et;
+        Event* _next;
+        Event* _prev;
+        EventAction* _ea;
+        Time _et;
 
-        Node();
-        Node(const Time& t, EventAction * ea);
+        Event();
+        Event(const Time& t, EventAction* ea);
     };
-    class AntiNode {
-    public:
-        AntiNode* m_next;
-        unsigned int _eventId;
-        Time m_et;
 
-        AntiNode(const Time& t, EventAction* ea) {
-            m_et = t;
-            _eventId = ea->GetEventId();
-        }
-    };
-    // head of linked list
-    Node * m_head;
-    AntiNode* _antiHead;
+    Event* _nextSchEvent;            // smallest timestamped scheduled event
+    Event* _prevExecEvent;            // last event executed
+    unsigned int rollbacks; //  Number of rollbacks occured
+    unsigned int numEventRolls;// number of event that rolled backed
 public:
     // saves event
-    void AddEvent(const Time& t, EventAction * ea);
+    void AddEvent(const Time& t, EventAction* ea);
 
     // Returns size of Event Set
     bool isEmpty() {
-        return !m_head;
+        // skip anti-msgs
+        Event* probe = _nextSchEvent;
+        while (probe && probe->_ea->GetEventClassId() == ANTI_MSG) {
+            probe = probe->_next;
+        }
+        // if tmp exists, then no anti-msg at location (found executable event)
+        if (probe) {
+            // move curr to tmp and move exec to pre
+            _nextSchEvent = probe;
+            _prevExecEvent = probe->_prev;
+            return false;
+        }
+        else
+            return true;
     }
 
-    void isAntiMsgSimultaneous(const Time& t, unsigned int eventId);
-
     // returns event with smallest time 
-    EventAction * GetEventAction();
+    EventAction* GetEventAction();
 
     // returns time with smallest time stamp and deletes event from set
     Time GetEventTime();
 
-    // removes event
-    //void RemoveEvent(EventAction * ea, Time t);
+    // removes old events given GVT time
+    void GVT_removal(const Time& GVT);
 
     // Defualt constructor
-    inline EventSet(){
-        m_head = nullptr;
-        _antiHead = nullptr;
+    inline EventSet() {
+        rollbacks = 0;
+        numEventRolls = 0;
+        _nextSchEvent = 0;
+        _prevExecEvent = 0;
     }
 
-    // deletes all nodes 
-    ~EventSet(){
-        // Node * current = m_head;
-        while (m_head != nullptr){
-            Node * to_delete = m_head;
-            m_head = m_head->m_next;
-            delete to_delete;
-            to_delete = nullptr; 
+    ~EventSet() {
+        Event* tmp;
+        while (_prevExecEvent) {
+            tmp = _prevExecEvent;
+            _prevExecEvent = _prevExecEvent->_prev;
+            delete tmp->_ea;
+            delete tmp;
+            tmp = 0;
         }
+        while (_nextSchEvent) {
+            tmp = _nextSchEvent;
+            _nextSchEvent = _nextSchEvent->_next;
+            delete tmp->_ea;
+            delete tmp;
+            tmp = 0;
+        }
+
+        printf("PROC=%i | Avg. Num Events Rolled=%f | Num Rolls=%i | Num Events Rolled=%i\n", CommunicationRank(), (float)numEventRolls / ((float)rollbacks), rollbacks, numEventRolls); fflush(stdout);
     }
 };
 #endif

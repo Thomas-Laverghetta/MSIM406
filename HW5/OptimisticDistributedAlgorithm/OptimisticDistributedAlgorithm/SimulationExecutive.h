@@ -1,7 +1,7 @@
 #ifndef SIMULATION_EXEC_H
 #define SIMULATION_EXEC_H
 
-#include "FIFO.h"
+#include <stack>
 #include <float.h>
 #include "Distribution.h"
 
@@ -74,7 +74,7 @@ private:
 			_t = t;
 		}
 	};
-	FIFO<AntiMsgStruct> _antiMsgs;
+	std::stack<AntiMsgStruct*> _antiMsgs;
 	unsigned int _eventId;
 };
 

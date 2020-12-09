@@ -4,7 +4,6 @@
 #include <iostream>
 #include <unordered_map>
 #include <thread>
-#include "Stack.hpp"
 #include "Distribution.h"
 
 using namespace std;
@@ -27,28 +26,20 @@ public:
 		EventAction::AddToBuffer(dataBuffer, (int*)&eventId, index, eventId);
 	}
 	void Deserialize(int* dataBuffer, int& index) { 
-		unsigned int eventId;
+		unsigned int eventId = 0;
 		EventAction::TakeFromBuffer(dataBuffer, (int*)&eventId, index, eventId);
 		SetEventId(eventId);
 	}
 };
 
 //-------------SIMULATION EXEC--------------------
-struct ExecutedEvents {
-	EventAction* _ea;
-	Time _t;
-	ExecutedEvents(EventAction* ea, Time t) : _ea(ea), _t(t) {}
-	~ExecutedEvents() { delete _ea; }
-};
-
-
 // Simulation Executive private variables:
 Time SimulationTime = 0;		// simulation time
 unordered_map<unsigned int, NewFunctor> EventClassMap; // mapping of class id to new methods
-EventSet ActiveEventSet;		// active events to execute
-Stack<ExecutedEvents*> ExecutedSet;// Set of executed Events
+EventSet ES;		// active events to execute
 
 // GVT 
+#define GVT_TAG -1
 Time GVT;
 enum MsgColor { Green, Red, Blue };
 MsgColor CurrMsgColor = MsgColor::Green;
@@ -62,13 +53,10 @@ unsigned int BlueRecvCounter = 0;
 unsigned int* GlobalMsgCounter;
 unsigned int* GlobalRedCounter;
 
-bool GreenPre = true;
-
+bool wasGreenPrev = true;
 bool RedWait = false;
 bool BGWait = false;
 bool GVT_init = true;
-
-bool ROLLBACK = false;			// true when rollback is occuring
 
 //----------------Comm-------------------
 int PROCESS_RANK = -1;
@@ -112,7 +100,7 @@ void Send(int dest, const Time& t, EventAction* ea)
 	cout << "SEND MSG : CURR=" << CommunicationRank() << " : TO=" << dest << " : EVENT=" << ea->GetClassId() << " : T=" << t << endl; fflush(stdout);
 	this_thread::sleep_for(2s);
 #endif
-	int bufferSize = ea->GetBufferSize() + (sizeof(t) + sizeof(CurrMsgColor))/ sizeof(int);
+	int bufferSize = ea->GetBufferSize() + (sizeof(t) + sizeof(CurrMsgColor) + sizeof(unsigned int))/ sizeof(int);
 	int* dataBuffer = new int[bufferSize];
 	int index = 0;
 
@@ -136,10 +124,10 @@ void Send(int dest, const Time& t, EventAction* ea)
 void Receive(int source, int tag)
 {
 
-	if (tag != -1) {
+	if (tag != GVT_TAG) {
 		// tag is class Id
 		EventAction* ea = EventClassMap[tag]();	// create new event action using tag == classId 
-		int bufferSize = ea->GetBufferSize() + (sizeof(Time) + sizeof(MsgColor)) / sizeof(int);
+		int bufferSize = ea->GetBufferSize() + (sizeof(Time) + sizeof(MsgColor) + sizeof(unsigned int)) / sizeof(int);
 		int* dataBuffer = new int[bufferSize];
 		MPI_Request request;
 
@@ -149,8 +137,9 @@ void Receive(int source, int tag)
 		int index = 0;
 		
 		// deserializing color of msg
-		MsgColor msg_color;
+		MsgColor msg_color = MsgColor::Blue;
 		EventAction::TakeFromBuffer(dataBuffer, (int*)&msg_color, index, msg_color);
+		// adding color msg to counter
 		switch (msg_color) {
 		case MsgColor::Blue:
 			BlueRecvCounter++;
@@ -176,18 +165,22 @@ void Receive(int source, int tag)
 		ea->SetEventId(eventId);
 
 		// add to queue
-		ActiveEventSet.AddEvent(t, ea);
+		ES.AddEvent(t, ea);
 
-		// waiting for transitant
+		// memory management
+		delete[] dataBuffer;
+
+		// if waiting for red transitant msg
 		if (RedWait && GlobalRedCounter[PROCESS_RANK] == RedRecvCounter) {
+			int bufferSize = (sizeof(unsigned int) * NUM_PROCESS) / sizeof(int);
+			int* dataBuffer = new int[bufferSize];
+
+			// setting wait to false (do not have to wait anymore)
+			RedWait = false;
+
 			// resetting counters
 			RedRecvCounter = 0;
 			index = 0;
-
-			// deserialing Red msg send
-			for (int P = 0; P < NUM_PROCESS; P++) {
-				EventAction::AddToBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
-			}
 
 			for (int i = 0; i < NUM_PROCESS; i++) {
 				RedOutCounter[i] = 0;
@@ -211,50 +204,88 @@ void Receive(int source, int tag)
 
 			// sending to next processor
 			MPI_Request request;
-			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, -1, MPI_COMM_WORLD, &request);
-			RedWait = false;
+			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, GVT_TAG, MPI_COMM_WORLD, &request);
+			delete[] dataBuffer;
 		}
 		// if waiting for transitant blue or green messages, check if new msg was last transitant
-		else if (BGWait && (GreenPre ? GlobalMsgCounter[0] == GreenRecvCounter : true) && (!GreenPre ? GlobalMsgCounter[0] == BlueRecvCounter : true)) {
+		else if (BGWait && (wasGreenPrev ? GlobalMsgCounter[PROCESS_RANK] == GreenRecvCounter : true) && (!wasGreenPrev ? GlobalMsgCounter[PROCESS_RANK] == BlueRecvCounter : true)) {
+			// not waiting for msgs anymore
+			BGWait = false;
+			
 			// Changing from blue to green or green to blue 
-			GreenPre = !GreenPre;
+			wasGreenPrev = !wasGreenPrev;
 
 			// resetting counters
-			GreenRecvCounter = GreenRecvCounter * (GreenPre);
-			BlueRecvCounter = BlueRecvCounter * (!GreenPre);
+			GreenRecvCounter = GreenRecvCounter * (wasGreenPrev);
+			BlueRecvCounter = BlueRecvCounter * (!wasGreenPrev);
 
 			// Changing color
-			CurrMsgColor = (GreenPre ? MsgColor::Green : MsgColor::Blue);
+			CurrMsgColor = (wasGreenPrev ? MsgColor::Green : MsgColor::Blue);
 
 			// Finding Min Time to send
-			if (SimulationTime < GVT && SimulationTime < ActiveEventSet.GetEventTime()) {
+			if (SimulationTime < GVT && SimulationTime < ES.GetEventTime()) {
 				GVT = SimulationTime;
 			}
-			else if (ActiveEventSet.GetEventTime() < GVT && ActiveEventSet.GetEventTime() < SimulationTime) {
-				GVT = ActiveEventSet.GetEventTime();
+			else if (ES.GetEventTime() < GVT && ES.GetEventTime() < SimulationTime) {
+				GVT = ES.GetEventTime();
 			}
 
-			// Sending GVT
-			int bufferSize = (sizeof(unsigned int) * NUM_PROCESS + sizeof(GVT)) / sizeof(int);
-			int* dataBuffer2 = new int[bufferSize];
-			index = 0;
+			// Last process to calculate GVT, therefore, only need to send GVT and red counter
+			if (PROCESS_RANK == NUM_PROCESS - 1) {
+				// resetting msg size
+				delete[] dataBuffer;
+				int bufferSize = (sizeof(Time) + sizeof(unsigned int) * NUM_PROCESS) / sizeof(int);
+				int* dataBuffer = new int[bufferSize];
 
-			// serializing GVT
-			EventAction::AddToBuffer(dataBuffer2, (int*)&GVT, index, GVT);
+				// serializing GVT
+				EventAction::AddToBuffer(dataBuffer, (int*)&GVT, index, GVT);
 
+				// serializing Red msg sent
+				for (int P = 0; P < NUM_PROCESS; P++) {
+					GlobalRedCounter[P] += RedOutCounter[P];
 
-			// serializing msg counters
-			for (int P = 0; P < NUM_PROCESS; P++) {
-				EventAction::AddToBuffer(dataBuffer2, (int*)&GlobalMsgCounter[P], index, GlobalMsgCounter[P]);
+					// resetting counter
+					RedOutCounter[P] = 0;
+
+					EventAction::AddToBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
+				}
 			}
+			else {
+				// Sending GVT
+				int bufferSize = (sizeof(unsigned int) * NUM_PROCESS * 2 + sizeof(GVT)) / sizeof(int);
+				int* dataBuffer = new int[bufferSize];
+				index = 0;
 
+				// serializing GVT
+				EventAction::AddToBuffer(dataBuffer, (int*)&GVT, index, GVT);
+
+
+				// serializing msg counters
+				for (int P = 0; P < NUM_PROCESS; P++) {
+					EventAction::AddToBuffer(dataBuffer, (int*)&GlobalMsgCounter[P], index, GlobalMsgCounter[P]);
+				}
+
+				// serializing Red msg sent
+				for (int P = 0; P < NUM_PROCESS; P++) {
+					// if process 0, set to your red out counter
+					if (PROCESS_RANK == 0) {
+						GlobalRedCounter[P] = RedOutCounter[P];
+					}
+					else { // else, add too red counter 
+						GlobalRedCounter[P] += RedOutCounter[P];
+					}
+
+					// resetting counter
+					RedOutCounter[P] = 0;
+
+					EventAction::AddToBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
+				}
+			}
 			MPI_Request request;
 
-			MPI_Isend(dataBuffer2, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, -1, MPI_COMM_WORLD, &request);
-			delete[] dataBuffer2;
-			BGWait = false;
+			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, GVT_TAG, MPI_COMM_WORLD, &request);
+			delete[] dataBuffer;
 		}
-		delete[] dataBuffer;
 
 #ifdef DEBUG
 		cout << "RECV MSG : CURR=" << CommunicationRank() << " : FROM=" << source << " : T=" << t << endl; fflush(stdout);
@@ -265,7 +296,7 @@ void Receive(int source, int tag)
 		// GVT init came back around
 		if (PROCESS_RANK == 0 && CurrMsgColor == MsgColor::Red) { 
 			// deserializing counter array
-			int bufferSize = (sizeof(unsigned int) * NUM_PROCESS * 2) / sizeof(int);
+			int bufferSize = (sizeof(unsigned int) * NUM_PROCESS) / sizeof(int);
 			int* dataBuffer = new int[bufferSize];
 			MPI_Request request;
 
@@ -277,35 +308,30 @@ void Receive(int source, int tag)
 				EventAction::TakeFromBuffer(dataBuffer, (int*)&GlobalMsgCounter[P], index, GlobalMsgCounter[P]);
 			}
 
-			// deserialing Red msg send
-			for (int P = 0; P < NUM_PROCESS; P++) {
-				EventAction::TakeFromBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
-			}
-
 			delete[] dataBuffer; 
 
-			// testing if recv all msg
-			if ((GreenPre ? GlobalMsgCounter[0] == GreenRecvCounter : true) && (!GreenPre ? GlobalMsgCounter[0] == BlueRecvCounter : true)) {
+			// testing if recv all msg from green/blue (previous 
+			if ((wasGreenPrev ? GlobalMsgCounter[0] == GreenRecvCounter : true) && (!wasGreenPrev ? GlobalMsgCounter[0] == BlueRecvCounter : true)) {
 				// Changing from blue to green or green to blue 
-				GreenPre = !GreenPre;
+				wasGreenPrev = !wasGreenPrev;
 
 				// resetting counters
-				GreenRecvCounter = GreenRecvCounter * (GreenPre);
-				BlueRecvCounter = BlueRecvCounter * (!GreenPre);
+				GreenRecvCounter = GreenRecvCounter * (wasGreenPrev);
+				BlueRecvCounter = BlueRecvCounter * (!wasGreenPrev);
 
-				// Changing color
-				CurrMsgColor = (GreenPre ? MsgColor::Green : MsgColor::Blue);
+				// Changing color (blue to green or green to blue)
+				CurrMsgColor = (wasGreenPrev ? MsgColor::Green : MsgColor::Blue);
 				
 				// Finding Min Time to send
-				if (SimulationTime < ActiveEventSet.GetEventTime()) {
+				if (SimulationTime < ES.GetEventTime()) {
 					GVT = SimulationTime;
 				}
 				else {
-					GVT = ActiveEventSet.GetEventTime();
+					GVT = ES.GetEventTime();
 				}
 
 				// Sending GVT
-				int bufferSize = (sizeof(GVT)) / sizeof(int);
+				int bufferSize = (sizeof(GVT) + sizeof(unsigned int) * NUM_PROCESS * 2) / sizeof(int);
 				int* dataBuffer = new int[bufferSize];
 				index = 0;
 
@@ -316,12 +342,22 @@ void Receive(int source, int tag)
 				for (int P = 0; P < NUM_PROCESS; P++) {
 					EventAction::AddToBuffer(dataBuffer, (int*)&GlobalMsgCounter[P], index, GlobalMsgCounter[P]);
 				}
+
+				// serializing Red msg sent
+				for (int P = 0; P < NUM_PROCESS; P++) {
+					// setting to process 0's red
+					GlobalRedCounter[P] = RedOutCounter[P];
+					RedOutCounter[P] = 0;
+
+					EventAction::AddToBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
+				}
+
 				MPI_Request request;
 
 				MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, -1, MPI_COMM_WORLD, &request);
 				delete[] dataBuffer;
 			}
-			else { // waiting for msgs
+			else { // all Green/Blue msgs haven't been recv'd, wait until msg has been recv'd
 				BGWait = true;
 				GVT = TIME_MAX;
 			}
@@ -330,23 +366,19 @@ void Receive(int source, int tag)
 		// Recv GVT init
 		else if (GVT_init && (CurrMsgColor == MsgColor::Green || CurrMsgColor == MsgColor::Blue)) { // recv GVT init msg
 			// deserializing counter array
-			int bufferSize = (sizeof(unsigned int) * NUM_PROCESS * 2) / sizeof(int);
+			int bufferSize = (sizeof(unsigned int) * NUM_PROCESS) / sizeof(int);
 			int* dataBuffer = new int[bufferSize];
 			MPI_Request request;
 
 			MPI_Irecv(dataBuffer, bufferSize, MPI_INTEGER, source, tag, MPI_COMM_WORLD, &request);
 			
-			// deserialize global msg counter
+			// deserialize global msg counter (blue or green counter)
 			int index = 0;
 			for (int P = 0; P < NUM_PROCESS; P++) {
 				EventAction::TakeFromBuffer(dataBuffer, (int*)&GlobalMsgCounter[P], index, GlobalMsgCounter[P]);
 			}
 
-			// deserialing Red msg send
-			for (int P = 0; P < NUM_PROCESS; P++) {
-				EventAction::TakeFromBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
-			}
-
+			// if we have recv all red msgs, then transition to red msg domain
 			if (RedRecvCounter == GlobalRedCounter[PROCESS_RANK]) {
 				// resetting counters
 				RedRecvCounter = 0;
@@ -355,7 +387,7 @@ void Receive(int source, int tag)
 				for (int i = 0; i < NUM_PROCESS; i++) {
 					RedOutCounter[i] = 0;
 					
-					// number of out msg sent
+					// adding its number of msgs sent to total number of msg sent
 					if (CurrMsgColor == MsgColor::Blue) {
 						GlobalMsgCounter[i] += BlueOutCounter[i];
 						BlueOutCounter[i] = 0;
@@ -374,19 +406,23 @@ void Receive(int source, int tag)
 
 				// sending to next processor
 				MPI_Request request;
-				MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, -1, MPI_COMM_WORLD, &request);
+				MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, GVT_TAG, MPI_COMM_WORLD, &request);
 			}
-			else { // red msgs
+			// not all red msgs have been recv, continue processing in green/blue domain until all msgs have been recv'd
+			else { 
+				// red msgs
 				RedWait = true;
 			}
 			delete[] dataBuffer;
+
+			// 
 			GVT_init = false;
 		}
 
 		// recv GVT calculation
 		else if (CurrMsgColor == MsgColor::Red) { // Calculate GVT
 			// Sending GVT
-			int bufferSize = (sizeof(unsigned int) * NUM_PROCESS + sizeof(Time)) / sizeof(int);
+			int bufferSize = (sizeof(unsigned int) * NUM_PROCESS*2 + sizeof(Time)) / sizeof(int);
 			int* dataBuffer = new int[bufferSize];
 			int index = 0;
 
@@ -397,40 +433,76 @@ void Receive(int source, int tag)
 			for (int P = 0; P < NUM_PROCESS; P++) {
 				EventAction::TakeFromBuffer(dataBuffer, (int*)&GlobalMsgCounter[P], index, GlobalMsgCounter[P]);
 			}
+
+			// deserializing Red msg sent
+			for (int P = 0; P < NUM_PROCESS; P++) {
+				EventAction::TakeFromBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
+			}
 			
-			if ((GreenPre ? GlobalMsgCounter[0] == GreenRecvCounter : true) && (!GreenPre ? GlobalMsgCounter[0] == BlueRecvCounter : true)) {
+			if ((wasGreenPrev ? GlobalMsgCounter[0] == GreenRecvCounter : true) && (!wasGreenPrev ? GlobalMsgCounter[0] == BlueRecvCounter : true)) {
 				// Changing from blue to green or green to blue 
-				GreenPre = !GreenPre;
+				wasGreenPrev = !wasGreenPrev;
 
 				// resetting counters
-				GreenRecvCounter = GreenRecvCounter * (GreenPre);
-				BlueRecvCounter = BlueRecvCounter * (!GreenPre);
+				GreenRecvCounter = GreenRecvCounter * (wasGreenPrev);
+				BlueRecvCounter = BlueRecvCounter * (!wasGreenPrev);
 
 				// Changing color
-				CurrMsgColor = (GreenPre ? MsgColor::Green : MsgColor::Blue);
+				CurrMsgColor = (wasGreenPrev ? MsgColor::Green : MsgColor::Blue);
 
-				if (SimulationTime < GVT && SimulationTime < ActiveEventSet.GetEventTime()) {
+				// finding min time between simulation time, ES time, and GVT time
+				if (SimulationTime < GVT && SimulationTime < ES.GetEventTime()) {
 					GVT = SimulationTime;
 				}
-				else if (ActiveEventSet.GetEventTime() < GVT && ActiveEventSet.GetEventTime() < SimulationTime) {
-					GVT = ActiveEventSet.GetEventTime();
+				else if (ES.GetEventTime() < GVT && ES.GetEventTime() < SimulationTime) {
+					GVT = ES.GetEventTime();
 				}
+				
+				// Last process to calculate GVT, therefore, only send red counter and GVT
+				if (PROCESS_RANK == NUM_PROCESS - 1) {
+					// resetting msg size
+					delete[] dataBuffer;
+					int bufferSize = (sizeof(Time) + sizeof(unsigned int) * NUM_PROCESS) / sizeof(int);
+					int* dataBuffer = new int[bufferSize];
 
-				index = 0;
-				// serializing GVT
-				EventAction::AddToBuffer(dataBuffer, (int*)&GVT, index, GVT);
+					EventAction::AddToBuffer(dataBuffer, (int*)&GVT, index, GVT);
 
-				// serializing msg counters
-				for (int P = 0; P < NUM_PROCESS; P++) {
-					EventAction::AddToBuffer(dataBuffer, (int*)&GlobalMsgCounter[P], index, GlobalMsgCounter[P]);
+					// serializing Red msg sent
+					for (int P = 0; P < NUM_PROCESS; P++) {
+						GlobalRedCounter[P] += RedOutCounter[P];
+
+						// resetting counter
+						RedOutCounter[P] = 0;
+
+						EventAction::AddToBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
+					}
 				}
+				else {
+					// serializing GVT
+					index = 0;
+					EventAction::AddToBuffer(dataBuffer, (int*)&GVT, index, GVT);
 
+					// serializing msg counters
+					for (int P = 0; P < NUM_PROCESS; P++) {
+						EventAction::AddToBuffer(dataBuffer, (int*)&GlobalMsgCounter[P], index, GlobalMsgCounter[P]);
+					}
+
+					// serializing Red msg sent
+					for (int P = 0; P < NUM_PROCESS; P++) {
+						GlobalRedCounter[P] += RedOutCounter[P];
+						
+						// resetting counter
+						RedOutCounter[P] = 0;
+
+						EventAction::AddToBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
+					}
+				}
 				// Sending to next Processor
 				MPI_Request request;
 
-				MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, -1, MPI_COMM_WORLD, &request);
+				MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, GVT_TAG, MPI_COMM_WORLD, &request);
 			}
-			else {
+			else {// all Green/Blue have not been recv'd yet, continue processing until recv'd
 				BGWait = true;
 			}
 
@@ -439,53 +511,29 @@ void Receive(int source, int tag)
 
 		// recv GVT and sending red counter
 		else {
-			int bufferSize = (sizeof(unsigned int) * NUM_PROCESS + sizeof(Time)) / sizeof(int);
+			int bufferSize = (sizeof(Time) + sizeof(unsigned int) * NUM_PROCESS) / sizeof(int);
 			int* dataBuffer = new int[bufferSize];
 			int index = 0;
 
 			// Deserializing GVT
 			EventAction::TakeFromBuffer(dataBuffer, (int*)&GVT, index, GVT);
 
-			// Deserializing msg counters
+			// deserializing Red msg sent
 			for (int P = 0; P < NUM_PROCESS; P++) {
-				EventAction::TakeFromBuffer(dataBuffer, (int*)&GlobalMsgCounter[P], index, GlobalMsgCounter[P]);
+				EventAction::TakeFromBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
 			}
 
-			delete dataBuffer;
-
-			// sending official GVT and red counter
-			bufferSize = (sizeof(unsigned int) * NUM_PROCESS + sizeof(Time)) / sizeof(int);
-			dataBuffer = new int[bufferSize];
-			index = 0;
-
-			// Serializing Red msg counter
-			for (int P = 0; P < NUM_PROCESS; P++) {
-				if (PROCESS_RANK == 0) {
-					GlobalRedCounter[P] = 0;
-					GlobalRedCounter[P] = RedOutCounter[P];
-				}
-				else {
-					GlobalRedCounter[P] += RedOutCounter[P];
-				}
-				EventAction::AddToBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
-			}
-
-			// Serializing GVT
-			EventAction::AddToBuffer(dataBuffer, (int*)&GVT, index, GVT);
-
+			// send GVT and red msg counter
 			MPI_Request request;
 
 			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, -1, MPI_COMM_WORLD, &request);
 			delete[] dataBuffer;
+
+			// set waiting for GVT again
 			GVT_init = true;
 
-
-			// removing old events
-			while (!ExecutedSet.empty() && ExecutedSet.bottom()->_t <= GVT) {
-				// delete event then pop bottom
-				delete ExecutedSet.bottom();// deleting will cause any anti-msg to be sent
-				ExecutedSet.popLeft();
-			}
+			// removing old event from ES
+			ES.GVT_removal(GVT);
 		}
 	}
 }
@@ -493,14 +541,14 @@ void Receive(int source, int tag)
 // Simulation Executive public Methods:
 Time GetSimulationTime() { return SimulationTime; }
 
-void ScheduleEventIn(Time deltaT, EventAction* ea, int LP)
+void ScheduleEvent(Time time, EventAction* ea, int LP)
 {
 	if (LP == CommunicationRank()) {
-		ActiveEventSet.AddEvent(deltaT + SimulationTime, ea);
+		ES.AddEvent(time, ea);
 	}
 	else {
 		if (EventClassMap.find(ea->GetEventClassId()) != EventClassMap.end()) {
-			Send(LP, deltaT + SimulationTime, ea);
+			Send(LP, time, ea);
 		}
 		else {
 			printf("Error Sending Undeclared Event. Please Declare Event\a\n");
@@ -511,7 +559,7 @@ void ScheduleEventIn(Time deltaT, EventAction* ea, int LP)
 
 // scheduling initial events
 void InitialScheduleEventIn(Time deltaT, EventAction* ea, int LP) {
-	ScheduleEventIn(deltaT, ea, LP);
+	ScheduleEvent(deltaT + SimulationTime, ea, LP);
 }
 
 // 
@@ -520,33 +568,19 @@ void RunSimulation(Time T)
 	// recieving variables
 	int tag, source;
 
-	Time tempTime;
-
 	unsigned int eventsExeuted = 0;
 	while (true) {
 		// wait for events
 		do {
 			while (CheckForComm(tag, source)) { Receive(source, tag); }
-		} while (ActiveEventSet.isEmpty());
+		} while (ES.isEmpty());
 
-		tempTime = ActiveEventSet.GetEventTime();
+		SimulationTime = ES.GetEventTime();
 
 		// if simulation time is greater than termination time then terminate
-		if (tempTime > T) {
+		if (SimulationTime > T) {
 			break;
 		}
-		// testing for rollback
-		else if (tempTime < SimulationTime) {
-			ROLLBACK = true;
-			while (!ExecutedSet.empty() && ExecutedSet.top()->_t < tempTime) {
-				// delete event then pop top
-				delete ExecutedSet.top();	// deleting will cause any anti-msg to be sent
-				ExecutedSet.pop();
-			}
-			ROLLBACK = false;
-		}
-		SimulationTime = tempTime;
-		
 
 #ifdef DEBUG
 			cout << "SIM TIME=" << SimulationTime << " : CURR=" << PROCESS_RANK << endl; fflush(stdout);
@@ -554,26 +588,30 @@ void RunSimulation(Time T)
 #endif
 
 		// get and execute event action
-		EventAction* ea = ActiveEventSet.GetEventAction();
+		EventAction* ea = ES.GetEventAction();
 		ea->Execute();
-		ExecutedSet.push(new ExecutedEvents(ea, SimulationTime));
 
 		// every 4-events executed, run GVT
 		if (eventsExeuted == 5 && RedRecvCounter == GlobalRedCounter[PROCESS_RANK]) {
+			// resetting counters
 			RedRecvCounter = 0;
 			eventsExeuted = 0;
 
-			int bufferSize = (sizeof(unsigned int) * NUM_PROCESS * 2) / sizeof(int);
+			int bufferSize = (sizeof(unsigned int) * NUM_PROCESS) / sizeof(int);
 			int* dataBuffer = new int[bufferSize];
-			// deserialize global msg counter
+
+			// serailize global msg counter
 			int index = 0;
 			for (int P = 0; P < NUM_PROCESS; P++) {
-				EventAction::TakeFromBuffer(dataBuffer, (int*)&GlobalMsgCounter[P], index, GlobalMsgCounter[P]);
-			}
-
-			// deserialing Red msg send
-			for (int P = 0; P < NUM_PROCESS; P++) {
-				EventAction::TakeFromBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
+				if (wasGreenPrev) {
+					GlobalMsgCounter[P] = GreenOutCounter[P];
+					GreenOutCounter[P] = 0;
+				}
+				else {
+					GlobalMsgCounter[P] = BlueOutCounter[P];
+					BlueOutCounter[P] = 0;
+				}
+				EventAction::AddToBuffer(dataBuffer, (int*)&GlobalMsgCounter[P], index, GlobalMsgCounter[P]);
 			}
 
 			// chaning to RED region
@@ -581,7 +619,7 @@ void RunSimulation(Time T)
 
 			// sending to next processor
 			MPI_Request request;
-			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, -1, MPI_COMM_WORLD, &request);
+			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, GVT_TAG, MPI_COMM_WORLD, &request);
 		}
 		
 #ifdef DEBUG
@@ -592,7 +630,7 @@ void RunSimulation(Time T)
 	CommunicationFinalize();
 
 	// destoying sets
-	ActiveEventSet.~EventSet();
+	ES.~EventSet();
 
 	// resetting simulation variables
 	SimulationTime = 0;
@@ -609,8 +647,20 @@ void InitializeSimulation()
 	// registering null message
 	EventClassMap[AntiMsg::_EventClassID] = AntiMsg::New;
 
-	GlobalMsgCounter = new unsigned[NUM_PROCESS];
-	GlobalRedCounter = new unsigned[NUM_PROCESS];
+	GlobalMsgCounter =	new unsigned int[NUM_PROCESS];
+	GlobalRedCounter =	new unsigned int[NUM_PROCESS];
+	GreenOutCounter = new unsigned int[NUM_PROCESS];
+	RedOutCounter = new unsigned int[NUM_PROCESS];
+	BlueOutCounter = new unsigned int[NUM_PROCESS];
+
+	// initializing counter to 0
+	for (int i = 0; i < NUM_PROCESS; i++) {
+		GreenOutCounter[i] = 0;
+		RedOutCounter[i] = 0;
+		BlueOutCounter[i] = 0;
+		GlobalMsgCounter[i] = 0;
+		GlobalRedCounter[i] = 0;
+	}
 
 	// random seed
 	srand(PROCESS_RANK * 3);
@@ -626,55 +676,35 @@ void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor) {
 	}
 }
 
-////// ANTI MSG 
-struct AntiMsgStruct {
-	Time _t;
-	unsigned int _eventId;
-	int _LP;
-	AntiMsgStruct(unsigned int eventId, int LP, Time t) {
-		_eventId = eventId;
-		_LP = LP;
-		_t = t;
-	}
-};
-unordered_map<unsigned int, Stack<AntiMsgStruct*>> AntiMsg_Map;
-
 // Event Action's schedule event, will be used
 void EventAction::ScheduleEventIn(Time deltaT, EventAction* ea, int LP)
 {
 	// create and push new anti-msg
-	AntiMsg_Map[this->_eventId].push(new AntiMsgStruct(this->_eventId, LP, deltaT + SimulationTime));
-	
+	_antiMsgs.push(new EventAction::AntiMsgStruct(this->_eventId, LP, deltaT + SimulationTime));
+
 	// schedule w/sim-exec
-	ScheduleEventIn(deltaT, ea, LP);
+	ScheduleEvent(deltaT + SimulationTime, ea, LP);
 }
 
+void EventAction::SendAntiMsg()
+{
+	while (!_antiMsgs.empty()) {
+		// create anti msg then schedule anti-msg
+		ScheduleEvent(_antiMsgs.top()->_t, new AntiMsg(_antiMsgs.top()->_eventId), _antiMsgs.top()->_LP);
+
+		// remove from stack
+		delete _antiMsgs.top();
+		_antiMsgs.pop();
+	}
+}
+
+// removing all anti-msgs
 EventAction::~EventAction()
 {
-	Stack<AntiMsgStruct*> * anti_msg_stack = &AntiMsg_Map[this->_eventId];
-	if (ROLLBACK) {
-		while (!anti_msg_stack->empty()) {
-			// determine if simultanious event
-			if (anti_msg_stack->top()->_LP == PROCESS_RANK && anti_msg_stack->top()->_t == SimulationTime) {
-				// event set will determine if simultaneous event
-				ActiveEventSet.isAntiMsgSimultaneous(anti_msg_stack->top()->_t, anti_msg_stack->top()->_eventId);
-			}
-			else if (!(anti_msg_stack->top()->_LP == PROCESS_RANK && anti_msg_stack->top()->_t < SimulationTime))
-			{ // send anti-msgs for scheduled events (ignore executed on this process)
-				// create anti msg then schedule anti-msg
-				ScheduleEventIn(anti_msg_stack->top()->_t, new AntiMsg(anti_msg_stack->top()->_eventId), anti_msg_stack->top()->_LP);
-			}
-
-			// remove from stack
-			delete anti_msg_stack->top();
-			anti_msg_stack->pop();
-		}
-	}
-	else { // remove all anti-msgs (this is used when GVT determines it is safe to delete executed events)
-		while (!anti_msg_stack->empty()) {
-			// remove from stack
-			delete anti_msg_stack->top();
-			anti_msg_stack->pop();
-		}
+	while (!_antiMsgs.empty()) {
+		// remove from stack
+		delete _antiMsgs.top();
+		_antiMsgs.pop();
 	}
 }
+
