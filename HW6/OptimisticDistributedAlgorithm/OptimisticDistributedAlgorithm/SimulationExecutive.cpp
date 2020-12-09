@@ -626,7 +626,9 @@ void RunSimulation(Time T)
 		// get and execute event action
 		EventAction* ea = ES.GetEventAction();
 		ea->Execute();
-		eventsExeuted++;
+
+		// count number of executed events between recving GVT and init GVT
+		eventsExeuted += GVT_init;
 
 		// every 4-events executed, run GVT
 		if (PROCESS_RANK == 0 && GVT_init && eventsExeuted >= 5 && RedRecvCounter == GlobalRedCounter[PROCESS_RANK]) {
