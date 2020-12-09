@@ -27,6 +27,9 @@
     <ClCompile Include="EventSet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TestHarness.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SimulationExecutive.h">
@@ -36,6 +39,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="EventSet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TestHarness.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

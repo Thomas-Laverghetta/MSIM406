@@ -1,7 +1,7 @@
 #include "SimulationExecutive.h"
-#include <thread>
+#include "TestHarness.h"
 
 int main() {
-
+	TestOptimisticSimulation();
 	return 0;
 }
