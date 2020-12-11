@@ -39,25 +39,26 @@ unordered_map<unsigned int, NewFunctor> EventClassMap; // mapping of class id to
 EventSet ES;		// active events to execute
 
 // GVT 
-#define GVT_TAG 100
-Time GVT;
-enum MsgColor { Green, Red, Blue };
-MsgColor CurrMsgColor = MsgColor::Green;
-unsigned int* GreenOutCounter = 0;
-unsigned int* RedOutCounter = 0;
-unsigned int* BlueOutCounter = 0;
-unsigned int GreenRecvCounter = 0;
-unsigned int RedRecvCounter = 0;
-unsigned int BlueRecvCounter = 0;
+#define GVT_TAG 100						// msg tag
+Time GVT;								// calculated GVT
+enum MsgColor { Green, Red, Blue };		// color domains
+MsgColor CurrMsgColor = MsgColor::Green;// variable to track current color domain (init to green)
+unsigned int* GreenOutCounter = 0;		// array to track green msg sent to each process
+unsigned int* RedOutCounter = 0;		// array to track red msg sent to each process
+unsigned int* BlueOutCounter = 0;		// array to track blue msg sent to each process
+unsigned int GreenRecvCounter = 0;		// counter to track num green recv'd
+unsigned int RedRecvCounter = 0;		// counter to track num red recv'd
+unsigned int BlueRecvCounter = 0;		// counter to track num blue recv'd
 
-unsigned int* GlobalMsgCounter;
-unsigned int* GlobalRedCounter;
+unsigned int* GlobalMsgCounter;			// array tracking num green/blue msgs sent to each LP (used when calculating GVT)
+unsigned int* GlobalRedCounter;			// array trackung num red msgs sent to each LP (used during GVT init)
 
-bool wasGreenPrev = true;
-bool RedWait = false;
-bool BGWait = false;
-bool GVT_init = true;
-bool GVT_CALC = true;
+// state machine variables
+bool wasGreenPrev = true;				// was the last state green? (true == green state; false == blue state)
+bool RedWait = false;					// if process is waiting for more red msgs to arrive before processing GVT init
+bool BGWait = false;					// if process is waiting for more green/blue to arrive before calculating GVT
+bool GVT_init = true;					// if GVT init needs to be processed
+bool GVT_CALC = true;					// if GVT needs to be calculated
 
 //----------------Comm-------------------
 int PROCESS_RANK = -1;
@@ -130,6 +131,17 @@ void Send(int dest, const Time& t, EventAction* ea)
 	MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, dest, ea->GetEventClassId(), MPI_COMM_WORLD, &request);
 	delete[] dataBuffer;
 	delete ea;
+}
+
+void Broadcast(int tag, int& bufferSize, int* dataBuffer) {
+	// broadcast to all processes except yours
+	for (int i = 0; i < NUM_PROCESS; i++) {
+		if (i != PROCESS_RANK) {
+			MPI_Request request;
+			MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, i, tag, MPI_COMM_WORLD, &request);
+		}
+	}
+	delete[] dataBuffer;
 }
 
 
@@ -556,12 +568,11 @@ void Receive(int source, int tag)
 				EventAction::TakeFromBuffer(dataBuffer, (int*)&GlobalRedCounter[P], index, GlobalRedCounter[P]);
 			}
 			
-			if (PROCESS_RANK != NUM_PROCESS - 1) {
-				// send GVT and red msg counter
-				MPI_Request request;
-
-				MPI_Isend(dataBuffer, bufferSize, MPI_INTEGER, (PROCESS_RANK + 1) % NUM_PROCESS, GVT_TAG, MPI_COMM_WORLD, &request);
+			// broadcasting GVT to all processes
+			if (PROCESS_RANK == 0) {
+				Broadcast(GVT_TAG, bufferSize, dataBuffer);
 			}
+
 			delete[] dataBuffer;
 
 			// set waiting for GVT again
@@ -624,14 +635,13 @@ void RunSimulation(Time T)
 #endif
 
 		// get and execute event action
-		EventAction* ea = ES.GetEventAction();
-		ea->Execute();
+		ES.GetEventAction()->Execute();
 
 		// count number of executed events between recving GVT and init GVT
 		eventsExeuted += GVT_init;
 
 		// every 4-events executed, run GVT
-		if (PROCESS_RANK == 0 && GVT_init && eventsExeuted >= 5 && RedRecvCounter == GlobalRedCounter[PROCESS_RANK]) {
+		if (PROCESS_RANK == 0 && GVT_init && eventsExeuted >= 100 && RedRecvCounter == GlobalRedCounter[PROCESS_RANK]) {
 			printf("INIT GVT | TIME=%f\n", SimulationTime); fflush(stdout);
 
 			GVT_init = false;
