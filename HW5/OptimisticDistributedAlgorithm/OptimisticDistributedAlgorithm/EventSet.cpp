@@ -114,7 +114,7 @@ void EventSet::AddEvent(const Time& t, EventAction * ea){
         // if time equals either
         else if ((_nextSchEvent && _nextSchEvent->_et == t) || (_prevExecEvent && _prevExecEvent->_et == t)) {
             // checking head
-            if (_nextSchEvent && _nextSchEvent->_ea->GetEventId() == ea->GetEventId()) {
+            if (_nextSchEvent && _nextSchEvent->_et == t && _nextSchEvent->_ea->GetEventId() == ea->GetEventId()) {
                 Event* tmp = _nextSchEvent;
 
                 _nextSchEvent = _nextSchEvent->_next;

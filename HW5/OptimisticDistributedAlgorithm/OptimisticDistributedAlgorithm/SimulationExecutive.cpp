@@ -157,7 +157,7 @@ void InitialScheduleEventIn(Time deltaT, EventAction* ea, int LP) {
 	ScheduleEvent(deltaT + SimulationTime, ea, LP);
 }
 
-
+// runs simulation
 void RunSimulation(Time T)
 {
 	// recieving variables
@@ -223,12 +223,11 @@ void RegisterEventActionClass(unsigned int classId, NewFunctor newFunctor) {
 	}
 }
 
-
 // Event Action's schedule event, will be used
 void EventAction::ScheduleEventIn(Time deltaT, EventAction* ea, int LP)
 {
 	// create and push new anti-msg
-	_antiMsgs.push(new EventAction::AntiMsgStruct(this->_eventId, LP, deltaT + SimulationTime));
+	_antiMsgs.push(new EventAction::AntiMsgStruct(ea->_eventId, LP, deltaT + SimulationTime));
 	
 	// schedule w/sim-exec
 	ScheduleEvent(deltaT + SimulationTime, ea, LP);

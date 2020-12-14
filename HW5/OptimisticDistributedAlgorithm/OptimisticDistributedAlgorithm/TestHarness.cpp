@@ -2,8 +2,8 @@
 #include <string>
 
 ofstream SimpleEA::outputFile;
-double SimpleEA::td_mean = 1.5;
-double SimpleEA::tw_max = 1;
+double SimpleEA::td_mean = 1;
+double SimpleEA::tw_max = 5;
 int n = 5;
 
 Distribution* SimpleEA::td = 0;
