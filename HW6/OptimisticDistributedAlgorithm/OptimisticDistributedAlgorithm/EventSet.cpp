@@ -490,7 +490,7 @@ void EventSet::GVT_removal(const Time& GVT)
     Event* curr = _prevExecEvent;
     
     // iterating curr event time is less than or equal to GVT
-    while (curr && curr->_et > GVT)
+    while (curr && curr->_et >= GVT)
         curr = curr->_prev;
     
     if (curr && curr->_next)
